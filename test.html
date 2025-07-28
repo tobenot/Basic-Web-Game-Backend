@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>魔法链接登录</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        input[type="email"] {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="email"]:focus {
+            outline: none;
+            border-color: #4A90E2;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #4A90E2, #357ABD);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4);
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            transform: none;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            display: none;
+            margin-top: 20px;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4A90E2;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .success-message {
+            display: none;
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .error-message {
+            display: none;
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .info-message {
+            display: none;
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: left;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .dashboard {
+            display: none;
+        }
+        
+        .user-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: left;
+        }
+        
+        .logout-btn {
+            background: #dc3545;
+            margin-top: 15px;
+        }
+        
+        .logout-btn:hover {
+            background: #c82333;
+        }
+
+        .debug-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            border-radius: 4px;
+            text-align: left;
+            font-size: 13px;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <!-- 登录表单 -->
+        <div id="loginForm">
+            <div class="logo">🪄</div>
+            <h1>魔法链接登录</h1>
+            <p class="subtitle">输入你的邮箱地址，我们会发送一个安全的登录链接到你的邮箱</p>
+            
+            <form onsubmit="requestLogin(event)">
+                <div class="form-group">
+                    <label for="email">邮箱地址</label>
+                    <input type="email" id="email" placeholder="your@email.com" required>
+                </div>
+                
+                <button type="submit" class="btn" id="loginBtn">发送登录链接</button>
+            </form>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p style="margin-top: 10px;">正在发送邮件...</p>
+            </div>
+            
+            <div class="success-message" id="successMessage">
+                <strong>✅ 邮件已发送！</strong><br>
+                请检查你的邮箱并点击登录链接。
+            </div>
+            
+            <div class="error-message" id="errorMessage"></div>
+            
+            <div class="info-message" id="infoMessage">
+                <strong>💡 开发者提示：</strong><br>
+                由于这是开发环境，魔法链接也会在服务器控制台中显示。<br>
+                如果你没有收到邮件，请检查：<br>
+                1. 邮箱地址是否正确<br>
+                2. 垃圾邮件文件夹<br>
+                3. Resend API 密钥是否正确配置<br>
+                4. 服务器控制台的日志信息
+            </div>
+        </div>
+        
+        <!-- 登录成功后的用户界面 -->
+        <div id="dashboard" class="dashboard">
+            <div class="logo">🎉</div>
+            <h1>登录成功！</h1>
+            <p class="subtitle">欢迎回来，以下是你的用户信息</p>
+            
+            <div class="user-info" id="userInfo">
+                <div class="spinner"></div>
+                <p>加载用户信息中...</p>
+            </div>
+
+            <button class="btn" onclick="getAnnouncement()">获取公告</button>
+            <div class="debug-info" id="announcementBox" style="display:none; margin-top: 15px;"></div>
+            
+            <button class="btn logout-btn" onclick="logout()">退出登录</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api/trpc';
+        let sessionToken = null;
+
+        // 页面加载时检查 URL 参数，看是否是从邮件链接过来的
+        window.addEventListener('load', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            
+            if (token) {
+                // 如果有 token 参数，说明是从邮件链接跳转过来的
+                verifyToken(token);
+            } else {
+                // 检查本地存储中是否有 sessionToken
+                const savedToken = localStorage.getItem('sessionToken');
+                if (savedToken) {
+                    sessionToken = savedToken;
+                    showDashboard();
+                }
+            }
+        });
+
+        function showMessage(elementId, message, isError = false) {
+            const element = document.getElementById(elementId);
+            if (isError) {
+                element.innerHTML = `<strong>❌ 错误：</strong><br>${message}`;
+            } else {
+                element.innerHTML = message;
+            }
+            element.style.display = 'block';
+        }
+
+        function hideMessage(elementId) {
+            document.getElementById(elementId).style.display = 'none';
+        }
+
+        async function requestLogin(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const loginBtn = document.getElementById('loginBtn');
+            const loading = document.getElementById('loading');
+            
+            // 隐藏之前的消息
+            hideMessage('successMessage');
+            hideMessage('errorMessage');
+            hideMessage('infoMessage');
+            
+            // 显示加载状态
+            loginBtn.disabled = true;
+            loading.style.display = 'block';
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth.requestLoginLink`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email })
+                });
+
+                const result = await response.json();
+                
+                if (result.result?.data?.success) {
+                    showMessage('successMessage', '');
+                    document.getElementById('successMessage').style.display = 'block';
+                    document.getElementById('infoMessage').style.display = 'block';
+                } else {
+                    showMessage('errorMessage', JSON.stringify(result, null, 2), true);
+                }
+            } catch (error) {
+                showMessage('errorMessage', error.message, true);
+            } finally {
+                loginBtn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        async function verifyToken(token) {
+            try {
+                const inputData = { token: token };
+                const url = `${API_BASE}/auth.verifyMagicToken?input=${encodeURIComponent(JSON.stringify(inputData))}`;
+                
+                const response = await fetch(url);
+                const result = await response.json();
+                
+                if (result.result?.data?.sessionToken) {
+                    sessionToken = result.result.data.sessionToken;
+                    localStorage.setItem('sessionToken', sessionToken);
+                    showDashboard();
+                } else {
+                    showMessage('errorMessage', '登录链接无效或已过期', true);
+                }
+            } catch (error) {
+                showMessage('errorMessage', `验证失败: ${error.message}`, true);
+            }
+        }
+
+        async function showDashboard() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            
+            // 获取用户信息
+            try {
+                const response = await fetch(`${API_BASE}/user.getMe`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`
+                    }
+                });
+
+                const result = await response.json();
+                
+                if (result.result?.data) {
+                    const user = result.result.data;
+                    document.getElementById('userInfo').innerHTML = `
+                        <strong>用户 ID:</strong> ${user.id}<br>
+                        <strong>邮箱:</strong> ${user.email}<br>
+                        <strong>注册时间:</strong> ${new Date(user.createdAt).toLocaleString('zh-CN')}
+                    `;
+                } else {
+                    document.getElementById('userInfo').innerHTML = '❌ 无法获取用户信息';
+                }
+            } catch (error) {
+                document.getElementById('userInfo').innerHTML = `❌ 获取用户信息失败: ${error.message}`;
+            }
+        }
+
+        async function getAnnouncement() {
+            const announcementBox = document.getElementById('announcementBox');
+            announcementBox.style.display = 'block';
+            announcementBox.innerHTML = '<div class="spinner"></div><p>正在获取公告...</p>';
+
+            try {
+                const response = await fetch(`${API_BASE}/announcement.getAnnouncement`);
+                const result = await response.json();
+
+                if (result.result?.data?.announcement) {
+                    announcementBox.innerText = result.result.data.announcement;
+                } else {
+                    announcementBox.innerText = '❌ 无法获取公告内容。';
+                }
+            } catch (error) {
+                announcementBox.innerText = `❌ 获取公告失败: ${error.message}`;
+            }
+        }
+
+        function logout() {
+            sessionToken = null;
+            localStorage.removeItem('sessionToken');
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('dashboard').style.display = 'none';
+            
+            // 清空表单
+            document.getElementById('email').value = '';
+            hideMessage('successMessage');
+            hideMessage('errorMessage');
+            hideMessage('infoMessage');
+            document.getElementById('announcementBox').style.display = 'none';
+            
+            // 清除 URL 参数
+            if (window.location.search) {
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        }
+    </script>
+</body>
+</html> 

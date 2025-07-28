@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录到您的应用</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background-color: #4A90E2;
+            color: #ffffff;
+            padding: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            padding: 30px;
+            line-height: 1.6;
+        }
+        .content p {
+            margin: 0 0 20px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #4A90E2;
+            color: #ffffff;
+            padding: 12px 25px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .footer {
+            background-color: #f4f4f4;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>欢迎回来！</h1>
+        </div>
+        <div class="content">
+            <p>您好，</p>
+            <p>请点击下方的按钮以安全登录您的账户。此链接将在15分钟后失效。</p>
+            <p style="text-align: center;">
+                <a href="{{magicLink}}" class="button">立即登录</a>
+            </p>
+            <p>如果您没有请求登录，请忽略此邮件。</p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2025 YourApp. 保留所有权利。</p>
+        </div>
+    </div>
+</body>
+</html> 
