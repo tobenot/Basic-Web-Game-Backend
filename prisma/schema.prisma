@@ -1,0 +1,30 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // 我们最终的生产数据库是 PostgreSQL
+  // 在本地开发时，我们会通过环境变量切换到一个临时的 SQLite 数据库
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 用户模型 (密码字段不再是必须的)
+model User {
+  id         String      @id @default(cuid())
+  email      String      @unique
+  createdAt  DateTime    @default(now())
+  authTokens AuthToken[]
+}
+
+// 一次性登录令牌模型
+model AuthToken {
+  id        String   @id @default(cuid())
+  token     String   @unique // 存储哈希后的令牌，保证安全
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
