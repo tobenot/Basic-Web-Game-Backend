@@ -1,10 +1,16 @@
 {
-  "name": "basic-web-game-backend",
+  "name": "@tobenot/basic-web-game-backend-contract",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/server.js",
+  "types": "dist/server.d.ts",
+  "files": [
+    "dist",
+    "package.json"
+  ],
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "npx tsc",
     "migrate:dev": "npx prisma migrate dev",
     "migrate:prod": "npx dotenv -e .env.publish -- npx prisma migrate deploy",
     "studio": "npx prisma studio",
