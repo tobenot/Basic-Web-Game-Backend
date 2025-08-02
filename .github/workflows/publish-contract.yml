@@ -21,7 +21,10 @@ jobs:
           scope: '@tobenot' # 明确指定 scope
 
       - name: Install dependencies and build
-        run: npm ci && npm run build
+        run: |
+          rm -rf package-lock.json node_modules
+          npm install
+          npm run build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
