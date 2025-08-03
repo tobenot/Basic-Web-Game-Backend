@@ -9,11 +9,12 @@
     "package.json"
   ],
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "npx tsc",
-    "migrate:dev": "npx prisma migrate dev",
-    "migrate:prod": "npx dotenv -e .env.publish -- npx prisma migrate deploy",
-    "studio": "npx prisma studio",
+    "prisma:generate:schema": "node scripts/generate-prisma-schema.js",
+    "dev": "npx dotenv -e .env -- npm run prisma:generate:schema && ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "npm run prisma:generate:schema && npx tsc",
+    "migrate:dev": "npx dotenv -e .env -- npm run prisma:generate:schema && npx prisma migrate dev",
+    "migrate:prod": "npx dotenv -e .env.publish -- npm run prisma:generate:schema && npx prisma migrate deploy",
+    "studio": "npx dotenv -e .env -- npm run prisma:generate:schema && npx prisma studio",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -42,7 +43,7 @@
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^20.14.12",
-    "dotenv-cli": "^7.4.2",
+    "dotenv-cli": "^7.4.4",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.5.4"
   }
