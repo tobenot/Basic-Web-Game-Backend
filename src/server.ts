@@ -47,13 +47,21 @@ server.register(require('@fastify/static'), {
 
 // 5. 启动服务器
 const start = async () => {
+  console.log('🔍 Starting server...');
   try {
+    console.log('🔍 About to start listening on port 3000...');
     await server.listen({ port: 3000 });
     console.log('🚀 Server listening on http://localhost:3000');
     console.log('📱 Test page available at http://localhost:3000/test.html');
   } catch (err) {
+    console.error('❌ Error starting server:', err);
     server.log.error(err);
     process.exit(1);
   }
 };
-start(); 
+
+console.log('🔍 About to call start()...');
+start().catch(err => {
+  console.error('❌ Unhandled error in start():', err);
+  process.exit(1);
+}); 
