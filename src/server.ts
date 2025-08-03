@@ -33,10 +33,19 @@ export async function createContext({ req }: { req: any }) {
 
 // 3. 创建并配置 Fastify 服务器
 const server = fastify({ maxParamLength: 5000 });
-server.register(cors);
+server.register(cors, {
+  origin: ['http://localhost:5174', 'http://localhost:3000', 'http://127.0.0.1:5174', 'http://tobenot.top',],
+  credentials: true
+});
 server.register(fastifyTRPCPlugin, {
   prefix: '/api/trpc',
-  trpcOptions: { router: appRouter, createContext },
+  trpcOptions: { 
+    router: appRouter, 
+    createContext,
+    onError: ({ error }: { error: any }) => {
+      console.error('tRPC Error:', error);
+    }
+  },
 });
 
 // 4. 注册静态文件服务

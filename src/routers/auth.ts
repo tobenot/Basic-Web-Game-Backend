@@ -13,6 +13,15 @@ const emailTemplatePath = path.join(__dirname, '../templates/magic-link-email.ht
 const emailTemplate = fs.readFileSync(emailTemplatePath, 'utf-8');
 
 export const authRouter = router({
+  healthCheck: publicProcedure
+    .query(async () => {
+      return { 
+        status: 'ok', 
+        timestamp: new Date().toISOString(),
+        message: 'Backend is online'
+      };
+    }),
+
   requestLoginLink: publicProcedure
     .input(z.object({ email: z.string().email() }))
     .mutation(async ({ input: { email } }) => {
