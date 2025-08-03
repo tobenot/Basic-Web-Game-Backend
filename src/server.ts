@@ -34,7 +34,7 @@ export async function createContext({ req }: { req: any }) {
 // 3. 创建并配置 Fastify 服务器
 const server = fastify({ maxParamLength: 5000 });
 server.register(cors, {
-  origin: ['http://localhost:5174', 'http://localhost:3000', 'http://127.0.0.1:5174', 'http://tobenot.top',],
+  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://tobenot.top'],
   credentials: true
 });
 server.register(fastifyTRPCPlugin, {
