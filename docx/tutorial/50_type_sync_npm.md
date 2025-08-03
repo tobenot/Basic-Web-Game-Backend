@@ -41,10 +41,12 @@
      ```
    - 输入您的GitHub用户名、个人访问令牌（PAT）和邮箱。
 
-3. **安装契约包**：
+3. **安装/更新契约包**：
    - 运行：
      ```bash
-     npm install @yourusername/api-contract@latest
+     yarn add @yourusername/api-contract@latest
+     # 或者对于已安装的包，仅更新：
+     # yarn upgrade @yourusername/api-contract
      ```
 
 4. **在代码中使用类型**：
@@ -160,10 +162,12 @@ npm login --scope=@yourusername --registry=https://npm.pkg.github.com
 - **Password**: 您的PAT令牌。
 - **Email**: 您的GitHub邮箱。
 
-#### **2.4 安装契约包**
+#### **2.4 安装/更新契约包**
 运行：
 ```bash
-npm install @yourusername/api-contract@latest
+yarn add @yourusername/api-contract@latest
+# 或者对于已安装的包，仅更新：
+# yarn upgrade @yourusername/api-contract
 ```
 
 #### **2.5 在代码中使用类型**
