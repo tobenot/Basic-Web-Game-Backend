@@ -15,7 +15,7 @@
     "migrate:dev": "npx dotenv -e .env -- npm run prisma:generate:schema && npx prisma migrate dev",
     "migrate:prod": "npx dotenv -e .env.publish -- npm run prisma:generate:schema && npx prisma migrate deploy",
     "studio": "npx dotenv -e .env -- npm run prisma:generate:schema && npx prisma studio",
-    "copy-templates": "if not exist dist\\templates mkdir dist\\templates && copy src\\templates\\* dist\\templates\\",
+    "copy-templates": "node scripts/copy-templates.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
