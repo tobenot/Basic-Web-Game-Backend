@@ -4,21 +4,24 @@ name: Publish API Contract to GitHub Packages
 on:
   push:
     branches:
-      - main # 每当 main 分支有更新时触发
+      - main
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           registry-url: 'https://npm.pkg.github.com'
-          scope: '@tobenot' # 明确指定 scope
+          scope: '@tobenot'
 
       - name: Install dependencies and build
         run: |
@@ -28,7 +31,17 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish to GitHub Packages
-        run: npm publish
+      - name: Update version and publish
+        run: |
+          npm version patch --no-git-tag-version
+          npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit and push version update
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add package.json
+          git commit -m "Auto update version for npm publish"
+          git push

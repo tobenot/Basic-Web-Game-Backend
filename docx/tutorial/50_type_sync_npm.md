@@ -98,22 +98,43 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@yourusername' # 替换为您的GitHub用户名
-      - run: npm ci && npm run build
+      - name: Install dependencies and build
+        run: |
+          rm -rf package-lock.json node_modules
+          npm install
+          npm run build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: npm publish
+      - name: Update version and publish
+        run: |
+          npm version patch --no-git-tag-version
+          npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit and push version update
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add package.json
+          git commit -m "Auto update version for npm publish"
+          git push
 ```
+
+**关键改进：**
+- 自动递增补丁版本号（如 1.0.0 → 1.0.1）
+- 自动提交版本更新到仓库
+- 避免版本冲突错误
 
 ---
 
@@ -172,8 +193,13 @@ jobs:
 ---
 
 ## **总结**
-1. 后端：每次推送到`main`分支时，自动发布新版本的契约包。
+1. 后端：每次推送到`main`分支时，自动递增版本号并发布新版本的契约包。
 2. 前端：通过`.npmrc`和PAT令牌安装最新版本的契约包。
 3. 开发：直接导入类型，享受完整的类型安全。
+
+**自动版本管理：**
+- 每次推送都会自动递增补丁版本号（1.0.0 → 1.0.1 → 1.0.2...）
+- 版本更新会自动提交到仓库
+- 避免版本冲突，确保每次都能成功发布
 
 这样，无论您的GitHub用户名是什么，都可以轻松实现前后端类型同步！
