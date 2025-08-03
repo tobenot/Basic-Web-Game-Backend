@@ -3,16 +3,16 @@ const path = require('path');
 
 // 确保在运行此脚本之前已经加载了 .env 文件
 const databaseUrl = process.env.DATABASE_URL;
+let provider;
 
 if (!databaseUrl) {
-  console.error('错误：DATABASE_URL 环境变量未设置。');
-  console.error('请确保您的 .env 文件中已定义 DATABASE_URL，并在运行脚本时加载它。');
-  console.error('例如: npx dotenv -e .env -- node scripts/generate-prisma-schema.js');
-  process.exit(1);
+  console.warn('⚠️  警告：未设置 DATABASE_URL。将默认使用 "postgresql" 作为 provider。');
+  console.warn('   这在仅用于生成类型的CI环境中是正常的。');
+  provider = 'postgresql';
+} else {
+  // 根据 DATABASE_URL 的前缀判断数据库提供者
+  provider = databaseUrl.startsWith('file:') ? 'sqlite' : 'postgresql';
 }
-
-// 根据 DATABASE_URL 的前缀判断数据库提供者
-const provider = databaseUrl.startsWith('file:') ? 'sqlite' : 'postgresql';
 
 // 定义模板和目标文件的路径
 const templatePath = path.join(__dirname, '..', 'prisma', 'schema.prisma.template');
