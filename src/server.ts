@@ -7,6 +7,7 @@ import { userRouter } from './routers/user';
 import { announcementRouter } from './routers/announcement';
 import { router } from './trpc';
 import { join } from 'path';
+import { config } from './config';
 
 // 1. 定义应用的主路由
 const appRouter = router({
@@ -34,7 +35,7 @@ export async function createContext({ req }: { req: any }) {
 // 3. 创建并配置 Fastify 服务器
 const server = fastify({ maxParamLength: 5000 });
 server.register(cors, {
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174', 'http://tobenot.top'],
+  origin: config.getCorsOrigins(),
   credentials: true
 });
 server.register(fastifyTRPCPlugin, {
@@ -58,10 +59,10 @@ server.register(require('@fastify/static'), {
 const start = async () => {
   console.log('🔍 Starting server...');
   try {
-    console.log('🔍 About to start listening on port 3000...');
-    await server.listen({ port: 3000 });
-    console.log('🚀 Server listening on http://localhost:3000');
-    console.log('📱 Test page available at http://localhost:3000/test.html');
+    console.log(`🔍 About to start listening on port ${config.server.port}...`);
+    await server.listen({ port: config.server.port, host: config.server.host });
+    console.log(`🚀 Server listening on ${config.getBackendUrl()}`);
+    console.log(`📱 Test page available at ${config.getBackendUrl()}/test.html`);
   } catch (err) {
     console.error('❌ Error starting server:', err);
     server.log.error(err);

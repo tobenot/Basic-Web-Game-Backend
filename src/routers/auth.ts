@@ -6,6 +6,7 @@ import { randomBytes, createHash } from 'crypto';
 import * as jwt from 'jsonwebtoken';
 import * as fs from 'fs';
 import * as path from 'path';
+import { config } from '../config';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -40,19 +41,19 @@ export const authRouter = router({
       });
 
       const inputForLink = { token: rawToken };
-      const magicLink = `${process.env.PUBLIC_URL}/test.html?token=${rawToken}`;
+      const magicLink = `${config.getBackendUrl()}/test.html?token=${rawToken}`;
 
       const emailHtml = emailTemplate.replace('{{magicLink}}', magicLink);
 
       // 在开发环境下，为了方便调试，同时在控制台打印出魔法链接
-      if (process.env.NODE_ENV !== 'production') {
+      if (!config.isProduction) {
         console.log(`✨ Magic Link for ${email}: ${magicLink}`);
       }
 
       // 真正发送邮件
       try {
         await resend.emails.send({
-          from: 'noreply@sendmail.tobenot.top',
+          from: config.email.from,
           to: email,
           subject: '登录到 YourApp',
           html: emailHtml,

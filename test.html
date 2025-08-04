@@ -242,7 +242,17 @@
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:3000/api/trpc';
+        // 动态获取API基础URL
+        const getApiBase = () => {
+            // 如果是本地开发环境，使用localhost:3000
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                return 'http://localhost:3000/api/trpc';
+            }
+            // 生产环境，使用当前域名
+            return `${window.location.protocol}//${window.location.host}/api/trpc`;
+        };
+        
+        const API_BASE = getApiBase();
         let sessionToken = null;
 
         // 页面加载时检查 URL 参数，看是否是从邮件链接过来的
