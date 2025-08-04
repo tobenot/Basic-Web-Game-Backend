@@ -34,26 +34,16 @@ export async function createContext({ req }: { req: any }) {
 
 // 3. 创建并配置 Fastify 服务器
 const server = fastify({ maxParamLength: 5000 });
-server.register(cors, {
-  origin: config.getCorsOrigins(),
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Content-Type', 'Authorization'],
-  maxAge: 86400
-});
 
-// 添加OPTIONS请求处理器
-server.addHook('onRequest', async (request, reply) => {
-  if (request.method === 'OPTIONS') {
-    reply.header('Access-Control-Allow-Origin', request.headers.origin || '*');
-    reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    reply.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-    reply.header('Access-Control-Allow-Credentials', 'true');
-    reply.header('Access-Control-Max-Age', '86400');
-    reply.send();
-  }
-});
+// CORS配置 - 使用可靠的配置
+const corsOptions = {
+  origin: config.getCorsOrigins(),
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
+  credentials: true,
+};
+
+server.register(cors, corsOptions);
 
 server.register(fastifyTRPCPlugin, {
   prefix: '/api/trpc',
