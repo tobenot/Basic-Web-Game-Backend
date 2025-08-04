@@ -1,6 +1,6 @@
 {
   "name": "@tobenot/basic-web-game-backend-contract",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "",
   "main": "dist/server.js",
   "types": "dist/server.d.ts",
