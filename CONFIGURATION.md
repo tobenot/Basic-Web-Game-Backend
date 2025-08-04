@@ -1,0 +1,101 @@
+# 🔧 项目配置说明
+
+## 📋 环境变量配置
+
+本项目使用统一的环境变量配置系统，所有URL和配置都通过环境变量管理。
+
+### 🚀 快速开始
+
+1. 复制环境变量示例文件：
+```bash
+cp .env.example .env
+```
+
+2. 根据你的环境修改 `.env` 文件中的配置
+
+### 📝 配置项说明
+
+#### 服务器配置
+- `PORT`: 服务器端口（默认：3000）
+- `HOST`: 服务器主机（默认：localhost）
+
+#### 前端URL配置
+- `FRONTEND_LOCAL_URL`: 本地开发前端URL（默认：http://localhost:5174）
+- `FRONTEND_PRODUCTION_URL`: 生产环境前端URL（默认：https://tobenot.top/Basic-Web-Game/#/demo-with-backend）
+
+#### 后端URL配置
+- `BACKEND_LOCAL_URL`: 本地开发后端URL（默认：http://localhost:3000）
+- `BACKEND_PRODUCTION_URL`: 生产环境后端URL（默认：https://api.tobenot.top）
+
+#### 邮件配置
+- `EMAIL_FROM`: 邮件发送地址（默认：noreply@sendmail.tobenot.top）
+
+#### 数据库配置
+- `DATABASE_URL`: PostgreSQL数据库连接字符串
+
+#### 安全配置
+- `JWT_SECRET`: JWT签名密钥
+- `RESEND_API_KEY`: Resend邮件服务API密钥
+
+#### 环境配置
+- `NODE_ENV`: 运行环境（development/production）
+
+### 🔄 配置自动切换
+
+系统会根据 `NODE_ENV` 环境变量自动切换配置：
+
+- **开发环境** (`NODE_ENV=development`)：使用本地URL
+- **生产环境** (`NODE_ENV=production`)：使用生产URL
+
+### 🌐 CORS配置
+
+CORS允许的源会根据环境自动配置：
+- 开发环境：包含所有本地开发URL
+- 生产环境：包含生产环境URL
+
+### 📧 邮件链接
+
+邮件中的魔法链接会根据当前环境自动生成正确的URL。
+
+### 🔍 前端API调用
+
+前端会自动检测当前环境并调用正确的API地址：
+- 本地开发：`http://localhost:3000/api/trpc`
+- 生产环境：使用当前域名
+
+## 🛠️ 部署配置
+
+### 本地开发
+```bash
+# 使用默认配置启动
+npm run dev
+
+# 或指定环境变量
+NODE_ENV=development npm run dev
+```
+
+### 生产部署
+```bash
+# 设置生产环境
+NODE_ENV=production npm start
+```
+
+确保在生产环境中设置正确的环境变量：
+- `NODE_ENV=production`
+- `FRONTEND_PRODUCTION_URL`
+- `BACKEND_PRODUCTION_URL`
+- `EMAIL_FROM`
+
+## 📊 配置迁移
+
+### 从旧版本迁移
+
+如果你之前使用的是硬编码的URL，现在可以通过环境变量来配置：
+
+1. 创建 `.env` 文件
+2. 复制 `.env.example` 中的配置
+3. 根据你的环境修改相应的URL
+
+### 兼容性
+
+系统保持向后兼容，旧的 `PUBLIC_URL` 环境变量仍然可以使用。
