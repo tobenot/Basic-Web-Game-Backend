@@ -2,7 +2,7 @@
 export const config = {
   // 服务器配置
   server: {
-    port: process.env.PORT || 3000,
+    port: Number(process.env.PORT) || 3000,
     host: process.env.HOST || 'localhost',
   },
   
