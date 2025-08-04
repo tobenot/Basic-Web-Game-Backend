@@ -16,11 +16,14 @@ const emailTemplate = fs.readFileSync(emailTemplatePath, 'utf-8');
 export const authRouter = router({
   healthCheck: publicProcedure
     .query(async () => {
-      return { 
+      console.log('🏥 Health check 被调用');
+      const result = { 
         status: 'ok', 
         timestamp: new Date().toISOString(),
         message: 'Backend is online'
       };
+      console.log('🏥 Health check 结果:', result);
+      return result;
     }),
 
   requestLoginLink: publicProcedure
