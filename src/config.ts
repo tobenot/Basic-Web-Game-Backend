@@ -45,10 +45,18 @@ export const config = {
     const origins = [
       config.frontend.localDev,
       config.backend.localDev,
+      config.frontend.production,
+      config.backend.production,
       'http://localhost:5173', // 兼容其他可能的本地端口
       'http://127.0.0.1:5173',
       'http://127.0.0.1:5174',
     ];
+    
+    // 从环境变量添加额外的CORS域名
+    const additionalOrigins = process.env.CORS_ADDITIONAL_ORIGINS;
+    if (additionalOrigins) {
+      origins.push(...additionalOrigins.split(',').map(origin => origin.trim()));
+    }
     
     if (config.isProduction) {
       origins.push(config.frontend.production);
