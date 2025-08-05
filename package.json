@@ -1,6 +1,6 @@
 {
   "name": "@tobenot/basic-web-game-backend-contract",
-  "version": "1.0.10",
+  "version": "1.1.1",
   "description": "",
   "main": "dist/server.js",
   "types": "dist/server.d.ts",
@@ -16,6 +16,10 @@
     "migrate:prod": "npx dotenv -e .env.publish -- npm run prisma:generate:schema && npx prisma migrate deploy",
     "studio": "npx dotenv -e .env -- npm run prisma:generate:schema && npx prisma studio",
     "copy-templates": "node scripts/copy-templates.js",
+    "version:patch": "node scripts/update-version.js patch",
+    "version:minor": "node scripts/update-version.js minor",
+    "version:major": "node scripts/update-version.js major",
+    "get-next-version": "node scripts/get-next-version.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
