@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'package.json'
 
 jobs:
   publish:
@@ -31,17 +33,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update version and publish
-        run: |
-          npm version patch --no-git-tag-version
-          npm publish
+      - name: Publish package
+        run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Commit and push version update
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add package.json
-          git commit -m "Auto update version for npm publish"
-          git push

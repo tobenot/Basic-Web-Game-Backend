@@ -1,0 +1,43 @@
+# .github/workflows/update-version.yml
+name: Update Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version type to increment'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Update version
+        run: npm run version:${{ github.event.inputs.version_type }}
+
+      - name: Commit and push version update
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add package.json
+          git commit -m "Update version to ${{ github.event.inputs.version_type }}"
+          git push
