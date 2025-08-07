@@ -10,7 +10,7 @@ generator client {
 datasource db {
   // 我们最终的生产数据库是 PostgreSQL
   // 在本地开发时，我们会通过环境变量切换到一个临时的 SQLite 数据库
-  provider = "sqlite" // <-- 这个占位符将被脚本替换
+  provider = "postgresql" // <-- 这个占位符将被脚本替换
   url      = env("DATABASE_URL")
 }
 
