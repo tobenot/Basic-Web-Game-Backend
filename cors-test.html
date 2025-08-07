@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS配置测试工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+            padding: 25px;
+            border: 1px solid #e1e5e9;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+
+        .section h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        input, select, button {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-ok { background: #28a745; }
+        .status-error { background: #dc3545; }
+        .status-warning { background: #ffc107; }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 CORS配置测试工具</h1>
+            <p>测试和调试你的CORS配置</p>
+        </div>
+
+        <div class="content">
+            <div class="grid">
+                <!-- CORS配置信息 -->
+                <div class="section">
+                    <h2>📋 CORS配置信息</h2>
+                    <button onclick="getCorsConfig()">获取配置</button>
+                    <div id="configResult" class="result" style="display: none;"></div>
+                </div>
+
+                <!-- 源测试 -->
+                <div class="section">
+                    <h2>🧪 源测试</h2>
+                    <div class="form-group">
+                        <label for="testOrigin">测试源:</label>
+                        <input type="text" id="testOrigin" placeholder="例如: http://localhost:3000" value="http://localhost:3000">
+                    </div>
+                    <button onclick="testOrigin()">测试源</button>
+                    <div id="originResult" class="result" style="display: none;"></div>
+                </div>
+
+                <!-- 预检请求测试 -->
+                <div class="section">
+                    <h2>🔄 预检请求测试</h2>
+                    <div class="form-group">
+                        <label for="preflightOrigin">源:</label>
+                        <input type="text" id="preflightOrigin" placeholder="例如: http://localhost:3000" value="http://localhost:3000">
+                    </div>
+                    <div class="form-group">
+                        <label for="preflightMethod">方法:</label>
+                        <select id="preflightMethod">
+                            <option value="GET">GET</option>
+                            <option value="POST">POST</option>
+                            <option value="PUT">PUT</option>
+                            <option value="DELETE">DELETE</option>
+                            <option value="OPTIONS">OPTIONS</option>
+                        </select>
+                    </div>
+                    <button onclick="testPreflight()">测试预检请求</button>
+                    <div id="preflightResult" class="result" style="display: none;"></div>
+                </div>
+
+                <!-- 健康检查 -->
+                <div class="section">
+                    <h2>💚 健康检查</h2>
+                    <button onclick="healthCheck()">检查服务状态</button>
+                    <div id="healthResult" class="result" style="display: none;"></div>
+                </div>
+            </div>
+
+            <!-- 快速测试 -->
+            <div class="section">
+                <h2>⚡ 快速测试</h2>
+                <p>测试常见的源配置:</p>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 15px;">
+                    <button onclick="quickTest('http://localhost:3000')">localhost:3000</button>
+                    <button onclick="quickTest('http://localhost:5173')">localhost:5173</button>
+                    <button onclick="quickTest('http://localhost:5174')">localhost:5174</button>
+                    <button onclick="quickTest('https://tobenot.top')">tobenot.top</button>
+                    <button onclick="quickTest('https://bwb.tobenot.top')">bwb.tobenot.top</button>
+                    <button onclick="quickTest('https://invalid-domain.com')">invalid-domain.com</button>
+                </div>
+                <div id="quickTestResult" class="result" style="display: none; margin-top: 20px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin + '/api/trpc';
+
+        // 显示结果
+        function showResult(elementId, data, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = `result ${type}`;
+            element.textContent = JSON.stringify(data, null, 2);
+        }
+
+        // 显示加载状态
+        function showLoading(elementId) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = 'result info';
+            element.innerHTML = '<span class="loading"></span> 正在测试...';
+        }
+
+        // 通用API调用函数
+        async function callAPI(endpoint, input = {}) {
+            try {
+                const response = await fetch(`${API_BASE}/${endpoint}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        json: input
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                return data.result.data;
+            } catch (error) {
+                throw new Error(`API调用失败: ${error.message}`);
+            }
+        }
+
+        // 获取CORS配置
+        async function getCorsConfig() {
+            showLoading('configResult');
+            try {
+                const config = await callAPI('corsDebug.getConfig');
+                showResult('configResult', config, 'success');
+            } catch (error) {
+                showResult('configResult', { error: error.message }, 'error');
+            }
+        }
+
+        // 测试源
+        async function testOrigin() {
+            const origin = document.getElementById('testOrigin').value;
+            if (!origin) {
+                alert('请输入要测试的源');
+                return;
+            }
+
+            showLoading('originResult');
+            try {
+                const result = await callAPI('corsDebug.testOrigin', { origin });
+                showResult('originResult', result, result.allowed ? 'success' : 'error');
+            } catch (error) {
+                showResult('originResult', { error: error.message }, 'error');
+            }
+        }
+
+        // 测试预检请求
+        async function testPreflight() {
+            const origin = document.getElementById('preflightOrigin').value;
+            const method = document.getElementById('preflightMethod').value;
+            
+            if (!origin) {
+                alert('请输入要测试的源');
+                return;
+            }
+
+            showLoading('preflightResult');
+            try {
+                const result = await callAPI('corsDebug.testPreflight', { 
+                    origin, 
+                    method,
+                    headers: ['Content-Type', 'Authorization']
+                });
+                showResult('preflightResult', result, result.originAllowed ? 'success' : 'error');
+            } catch (error) {
+                showResult('preflightResult', { error: error.message }, 'error');
+            }
+        }
+
+        // 健康检查
+        async function healthCheck() {
+            showLoading('healthResult');
+            try {
+                const result = await callAPI('corsDebug.health');
+                showResult('healthResult', result, 'success');
+            } catch (error) {
+                showResult('healthResult', { error: error.message }, 'error');
+            }
+        }
+
+        // 快速测试
+        async function quickTest(origin) {
+            showLoading('quickTestResult');
+            try {
+                const result = await callAPI('corsDebug.testOrigin', { origin });
+                const status = result.allowed ? '✅' : '❌';
+                const existingContent = document.getElementById('quickTestResult').textContent;
+                const newContent = existingContent + `\n${status} ${origin}: ${result.allowed ? '允许' : '拒绝'}`;
+                
+                document.getElementById('quickTestResult').style.display = 'block';
+                document.getElementById('quickTestResult').className = 'result info';
+                document.getElementById('quickTestResult').textContent = newContent;
+            } catch (error) {
+                showResult('quickTestResult', { error: error.message }, 'error');
+            }
+        }
+
+        // 页面加载时自动获取配置
+        window.addEventListener('load', () => {
+            getCorsConfig();
+        });
+    </script>
+</body>
+</html>

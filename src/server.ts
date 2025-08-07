@@ -5,15 +5,20 @@ import * as jwt from 'jsonwebtoken';
 import { authRouter } from './routers/auth';
 import { userRouter } from './routers/user';
 import { announcementRouter } from './routers/announcement';
+import { corsDebugRouter } from './routers/cors-debug';
 import { router } from './trpc';
 import { join } from 'path';
 import { config } from './config';
+import { corsPluginOptions } from './middleware';
+import { getCorsConfig } from './config/cors';
+import { testCors } from './utils/cors-test';
 
 // 1. 定义应用的主路由
 const appRouter = router({
   auth: authRouter,
   user: userRouter,
   announcement: announcementRouter,
+  corsDebug: corsDebugRouter, // CORS调试路由
 });
 export type AppRouter = typeof appRouter;
 
@@ -35,18 +40,23 @@ export async function createContext({ req }: { req: any }) {
 // 3. 创建并配置 Fastify 服务器
 const server = fastify({ maxParamLength: 5000 });
 
-// CORS配置 - 使用可靠的配置
-const corsOptions = {
-  origin: config.getCorsOrigins(),
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
-  credentials: true,
-};
+// 使用新的CORS中间件配置
+const corsConfig = getCorsConfig();
+console.log('🔧 CORS配置:', JSON.stringify(corsConfig, null, 2));
+console.log('🔧 允许的源:', corsConfig.origins);
 
-console.log('🔧 CORS配置:', JSON.stringify(corsOptions, null, 2));
-console.log('🔧 允许的源:', config.getCorsOrigins());
-
-server.register(cors, corsOptions);
+if (corsConfig.enabled) {
+  server.register(cors, corsPluginOptions);
+  console.log('✅ CORS中间件已启用');
+  
+  // 在开发环境下运行CORS测试
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('🧪 运行CORS配置测试...');
+    testCors();
+  }
+} else {
+  console.log('⚠️ CORS中间件已禁用');
+}
 
 // 添加请求日志中间件
 server.addHook('onRequest', async (request, reply) => {
