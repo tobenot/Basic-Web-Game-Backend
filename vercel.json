@@ -3,11 +3,7 @@
   "functions": {
     "api/index.ts": {
       "runtime": "nodejs18.x",
-      "includeFiles": [
-        "test.html",
-        "cors-test.html",
-        "src/templates/**"
-      ]
+      "includeFiles": "{test.html,cors-test.html,src/templates/**}"
     }
   },
   "rewrites": [
