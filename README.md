@@ -180,3 +180,15 @@ If you have any questions or need help, please:
 **Made with ❤️ by [tobenot](https://github.com/tobenot)**
 
 *This project is maintained as an independent open-source effort to provide a solid foundation for web game backends.*
+
+## Template Updates
+
+- Use the bundled script to preview/apply template updates:
+  - Preview latest: `bash scripts/update-from-template.sh`
+  - Apply a specific tag with backup: `APPLY=1 bash scripts/update-from-template.sh vX.Y.Z`
+- The template source and version are recorded in `template.lock`.
+- Install a non-blocking pre-commit reminder:
+  ```bash
+  bash scripts/install-git-hooks.sh
+  ```
+- Controlled areas (prefer updating via template): `.github/`, `scripts/`, `src/framework/`, template-marked blocks in `src/server.ts`, `tsconfig.json`, `vercel.json`, and docs listed in `MIGRATION.md`.

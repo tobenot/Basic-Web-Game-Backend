@@ -37,6 +37,7 @@ export async function createContext({ req }: { req: any }) {
   return { user: null };
 }
 
+// <template:bootstrap>
 // 3. 创建并配置 Fastify 服务器
 const server = fastify({ maxParamLength: 5000 });
 
@@ -95,7 +96,9 @@ server.register(require('@fastify/static'), {
   root: join(__dirname, '..'),
   prefix: '/'
 });
+// </template:bootstrap>
 
+// <template:startup>
 // 5. 启动服务器
 const start = async () => {
   console.log('🔍 Starting server...');
@@ -123,4 +126,5 @@ console.log('🔍 About to call start()...');
 start().catch(err => {
   console.error('❌ Unhandled error in start():', err);
   process.exit(1);
-}); 
+});
+// </template:startup> 

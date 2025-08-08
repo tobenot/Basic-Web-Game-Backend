@@ -143,3 +143,7 @@ vite.config.ts.timestamp-*
 /prisma/dev.db-journal
 # Keep migrations in version control
 !/prisma/migrations
+
+# Template update cache and backups
+.template-cache/
+.template-backup/
