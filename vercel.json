@@ -2,12 +2,8 @@
   "version": 2,
   "functions": {
     "api/index.ts": {
-      "runtime": "nodejs18.x",
-      "includeFiles": [
-        "test.html",
-        "cors-test.html",
-        "src/templates/**"
-      ]
+      "runtime": "vercel/node@20.x",
+      "includeFiles": "{test.html,cors-test.html,src/templates/**}"
     }
   },
   "rewrites": [
