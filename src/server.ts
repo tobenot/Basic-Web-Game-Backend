@@ -9,7 +9,7 @@ import { corsDebugRouter } from './routers/cors-debug';
 import { router } from './trpc';
 import { join } from 'path';
 import { config } from './config';
-import { corsPluginOptions } from './middleware';
+import { corsPluginOptions, corsMiddleware } from './middleware';
 import { getCorsConfig } from './config/cors';
 import { testCors } from './utils/cors-test';
 
@@ -48,6 +48,8 @@ console.log('🔧 允许的源:', corsConfig.origins);
 
 if (corsConfig.enabled) {
   server.register(cors, corsPluginOptions);
+  // 关键：在最早阶段拦截并处理所有请求（包含无路由匹配的 OPTIONS 预检）
+  server.addHook('onRequest', corsMiddleware);
   console.log('✅ CORS中间件已启用');
   
   // 在开发环境下运行CORS测试
