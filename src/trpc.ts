@@ -1,7 +1,6 @@
 import { initTRPC, TRPCError } from '@trpc/server';
-import { createContext } from './server';
 
-type Context = Awaited<ReturnType<typeof createContext>>;
+export type Context = { user: { userId: string } | null };
 
 const t = initTRPC.context<Context>().create();
 

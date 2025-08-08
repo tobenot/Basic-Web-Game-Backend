@@ -1,0 +1,13 @@
+node_modules/.cache
+**/*.map
+**/*.test.ts
+**/*.spec.ts
+**/__tests__/**
+**/.env*
+**/.git/**
+**/.github/**
+**/docx/**
+**/deploy/**
+**/README.md
+**/MIGRATION.md
+**/CONFIGURATION.md

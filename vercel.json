@@ -1,12 +1,16 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "dist/server.js",
-      "use": "@vercel/node"
+  "functions": {
+    "api/index.ts": {
+      "runtime": "nodejs18.x",
+      "includeFiles": [
+        "test.html",
+        "cors-test.html",
+        "src/templates/**"
+      ]
     }
-  ],
+  },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/dist/server.js" }
+    { "source": "/(.*)", "destination": "/api/index" }
   ]
 }
