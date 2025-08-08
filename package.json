@@ -51,11 +51,11 @@
     "jsonwebtoken": "^9.0.2",
     "prisma": "^5.17.0",
     "resend": "^3.5.0",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^20.14.12"
   },
   "devDependencies": {
-    "@types/jsonwebtoken": "^9.0.6",
-    "@types/node": "^20.14.12",
     "dotenv-cli": "^7.4.4",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.5.4"
