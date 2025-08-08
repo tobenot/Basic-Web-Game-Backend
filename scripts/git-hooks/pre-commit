@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Non-blocking pre-commit tip for template-controlled areas
+
+STAGED=$(git diff --name-only --cached)
+WARN=0
+
+if echo "$STAGED" | grep -E '^(scripts/|src/framework/|\.github/|tsconfig\.json|vercel\.json)$' >/dev/null; then
+  WARN=1
+fi
+if echo "$STAGED" | grep -E '^src/server\.ts$' >/dev/null; then
+  WARN=1
+fi
+
+if [ "$WARN" -eq 1 ]; then
+  echo "\n⚠️  Heads-up: You're committing changes in template-controlled areas."
+  echo "   Consider applying such changes in the template repo and syncing via scripts/update-from-template.sh."
+  echo "   This is only a reminder; commit will proceed.\n"
+fi
+
+exit 0
