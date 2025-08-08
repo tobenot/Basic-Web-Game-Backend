@@ -2,14 +2,14 @@
 name: Publish API Contract to GitHub Packages
 
 on:
-  push:
-    paths:
-      - 'src/**/*.ts'
-      - 'dist/**/*.d.ts'
-      - 'package.json'
+  workflow_run:
+    workflows: ["Update Version"]
+    types:
+      - completed
 
 jobs:
   publish:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -18,6 +18,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - uses: actions/setup-node@v4
         with:
@@ -30,24 +31,27 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Bump version if needed
-        run: |
-          latest=$(npm view @tobenot/basic-web-game-backend-contract version --registry=https://npm.pkg.github.com || echo "0.0.0")
-          current=$(node -p "require('./package.json').version")
-          if [ "$current" = "$latest" ]; then
-            next=$(npx semver $latest -i patch)
-            jq ".version = \"$next\"" package.json > package.json.tmp && mv package.json.tmp package.json
-            echo "Bumped version to $next"
-          else
-            echo "No need to bump version"
-          fi
-
       - name: Build
         run: npm run build
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Skip if version already exists
+        id: precheck
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Local version: $VERSION"
+          if npm view @tobenot/basic-web-game-backend-contract@${VERSION} version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Version ${VERSION} already exists in registry. Skipping publish."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Publish package
+        if: steps.precheck.outputs.exists == 'false'
         run: npm publish --registry=https://npm.pkg.github.com
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
