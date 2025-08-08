@@ -147,3 +147,9 @@ vite.config.ts.timestamp-*
 # Template update cache and backups
 .template-cache/
 .template-backup/
+
+# Deployment artifacts
+/release-*.tar.gz
+/bwb-*.tar.gz
+/.release-stage/
+/deploy-packages/
