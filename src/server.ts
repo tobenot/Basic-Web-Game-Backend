@@ -100,6 +100,11 @@ server.register(require('@fastify/static'), {
 });
 // </template:bootstrap>
 
+// Health endpoint for deployment checks
+server.get('/health', async (_request, reply) => {
+  return reply.code(200).send({ status: 'ok' });
+});
+
 // <template:startup>
 // 5. 启动服务器
 const start = async () => {
