@@ -150,6 +150,6 @@ vite.config.ts.timestamp-*
 
 # Deployment artifacts
 /release-*.tar.gz
-/bwb-*.tar.gz
+/basic-web-game-backend-contract-*.tar.gz
 /.release-stage/
 /deploy-packages/
