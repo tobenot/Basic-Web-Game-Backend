@@ -47,12 +47,12 @@ npm run get-next-version
 
 修改后的发布流程：
 1. 手动更新版本号（本地或GitHub Action）
-2. 推送到main分支
-3. 自动触发发布到npm包（不会更新版本号）
+2. 推送到 main 分支
+3. “Update Version” 工作流成功后，自动触发发布工作流，将当前主分支代码发布到 GitHub Packages（发布流程本身不会修改版本号）
 
 ### 5. 避免循环触发
 
-- 发布工作流添加了`paths-ignore: ['package.json']`，避免版本更新触发发布
+- 发布工作流不再基于 push 触发，而是仅在“Update Version”工作流成功完成后触发
 - 版本更新工作流只在手动触发时运行
 
 ## 使用建议

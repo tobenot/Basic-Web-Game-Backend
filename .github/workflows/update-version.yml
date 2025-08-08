@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      packages: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,17 +28,25 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@tobenot'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update version
-        run: npm run version:${{ github.event.inputs.version_type }}
+        run: REGISTRY_URL=https://npm.pkg.github.com NODE_AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }} npm run version:${{ github.event.inputs.version_type }}
 
       - name: Commit and push version update
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add package.json
-          git commit -m "Update version to ${{ github.event.inputs.version_type }}"
-          git push
+          git add package.json package-lock.json || true
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: version bump (${{ github.event.inputs.version_type }})"
+            git push
+          fi
