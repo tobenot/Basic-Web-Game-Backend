@@ -122,13 +122,20 @@ npm run copy-templates          # Copy template files
 
 ```
 src/
-├── routers/           # tRPC routers
-│   ├── auth.ts       # Authentication routes
-│   ├── user.ts       # User management
-│   └── announcement.ts # Announcement system
-├── templates/         # Email templates
+├── ai/               # AI service & queue
+│   ├── AiService.ts
+│   ├── AiRequestQueueService.ts
+│   └── types.ts
+├── routers/          # tRPC/Fastify routers
+│   ├── auth.ts
+│   ├── user.ts
+│   ├── announcement.ts
+│   └── llm-proxy.ts
+├── utils/            # Utilities (e.g. LLM upstream client)
+│   └── llm-client.ts
+├── templates/        # Email templates
 ├── server.ts         # Fastify server setup
-└── trpc.ts          # tRPC configuration
+└── trpc.ts           # tRPC configuration
 ```
 
 ## 🚀 Deployment
