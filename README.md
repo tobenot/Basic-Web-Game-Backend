@@ -118,6 +118,27 @@ npm run prisma:generate:schema  # Generate Prisma schema
 npm run copy-templates          # Copy template files
 ```
 
+### 发布到 GitHub Packages
+
+1. 手动触发工作流 `Update Version`，选择 `patch|minor|major`
+2. 流水线将提交版本更新，随后自动触发 `Publish API Contract` 完成发布
+3. 验证版本：
+   ```bash
+   npm view @tobenot/basic-web-game-backend-contract version --registry=https://npm.pkg.github.com
+   ```
+4. 前端安装：
+   ```bash
+   yarn add @tobenot/basic-web-game-backend-contract@latest
+   ```
+
+备用：本地直接发布
+```bash
+npm login --scope=@tobenot --registry=https://npm.pkg.github.com
+npm run build
+npm version patch --no-git-tag-version
+npm publish --registry=https://npm.pkg.github.com
+```
+
 ### Project Structure
 
 ```
