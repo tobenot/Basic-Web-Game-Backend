@@ -86,6 +86,10 @@ export async function buildServer(): Promise<FastifyInstance> {
     },
   });
 
+  // Register OpenAI-compatible proxy routes
+  server.register(require('./routers/llm-proxy').llmProxyRoutes);
+
+
   server.register(require('@fastify/static'), {
     root: process.cwd(),
     prefix: '/',
