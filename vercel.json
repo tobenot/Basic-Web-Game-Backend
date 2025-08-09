@@ -2,7 +2,8 @@
   "version": 2,
   "functions": {
     "api/index.ts": {
-      "includeFiles": "{test.html,cors-test.html,src/templates/**}"
+      "includeFiles": "{test.html,cors-test.html,src/templates/**}",
+      "maxDuration": 60
     }
   },
   "rewrites": [
