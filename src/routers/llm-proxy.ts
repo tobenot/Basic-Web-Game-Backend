@@ -21,37 +21,24 @@ export const llmProxyRoutes: FastifyPluginCallback = (server: FastifyInstance, _
       };
       reply.raw.on('close', onClose);
 
-      // OpenAI-compatible chunk scaffolding
-      const created = Math.floor(Date.now() / 1000);
-      const id = `chatcmpl-proxy-${created}-${Math.random().toString(36).slice(2, 8)}`;
-      const model = body.model;
-
-      const initial = {
-        id,
-        object: 'chat.completion.chunk',
-        created,
-        model,
-        choices: [
-          { index: 0, delta: { role: 'assistant' }, finish_reason: null },
-        ],
-      } as const;
-      reply.raw.write(`data: ${JSON.stringify(initial)}\n\n`);
-
       try {
-        for await (const token of upstream.streamChatCompletion(body, abortController.signal)) {
-          const chunk = {
-            id,
-            object: 'chat.completion.chunk',
-            created,
-            model,
-            choices: [
-              { index: 0, delta: { content: token }, finish_reason: null },
-            ],
-          };
-          reply.raw.write(`data: ${JSON.stringify(chunk)}\n\n`);
+        const upstreamRes = await upstream.fetchChatCompletionStream(body, abortController.signal);
+        if (!upstreamRes.ok || !upstreamRes.body) {
+          const text = await upstreamRes.text().catch(() => '');
+          // best-effort JSON error since headers already set to SSE
+          reply.code(upstreamRes.status);
+          reply.raw.write(`: upstream error ${text}\n\n`);
+        } else {
+          const reader = upstreamRes.body.getReader();
+          const decoder = new TextDecoder();
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            if (value) {
+              reply.raw.write(decoder.decode(value, { stream: true }));
+            }
+          }
         }
-
-        reply.raw.write('data: [DONE]\n\n');
       } catch (err: any) {
         try {
           const message = typeof err?.message === 'string' ? err.message : 'Upstream error';

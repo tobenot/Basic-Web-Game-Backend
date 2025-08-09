@@ -86,8 +86,27 @@ export async function buildServer(): Promise<FastifyInstance> {
     },
   });
 
-  // Register OpenAI-compatible proxy routes
+  // Register OpenAI-compatible proxy routes (both /v1/... and /api/v1/... aliases)
   server.register(require('./routers/llm-proxy').llmProxyRoutes);
+  server.register((instance: any, _opts: any, done: any) => {
+    instance.post('/api/v1/chat/completions', (req: any, reply: any) => {
+      // delegate to the main handler by internally calling the same logic
+      (instance as any).inject({
+        method: 'POST',
+        url: '/v1/chat/completions',
+        payload: req.body,
+        headers: req.headers,
+      }).then((res: any) => {
+        reply
+          .code(res.statusCode)
+          .headers(res.headers)
+          .send(res.rawPayload || res.payload);
+      }).catch((err: any) => {
+        reply.code(500).send({ error: String(err?.message || err) });
+      });
+    });
+    done();
+  });
 
 
   server.register(require('@fastify/static'), {

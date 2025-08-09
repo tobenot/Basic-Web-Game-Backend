@@ -63,6 +63,20 @@ export class LlmClient {
     return (await res.json()) as ChatCompletionResponse;
   }
 
+  async fetchChatCompletionStream(params: ChatCompletionParams, abortSignal?: AbortSignal): Promise<Response> {
+    const url = `${this.baseUrl}/v1/chat/completions`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({ ...params, stream: true }),
+      signal: abortSignal,
+    } as RequestInit);
+    return res;
+  }
+
   async *streamChatCompletion(params: ChatCompletionParams, abortSignal?: AbortSignal): AsyncGenerator<string, void, unknown> {
     const url = `${this.baseUrl}/v1/chat/completions`;
     const res = await fetch(url, {
@@ -117,7 +131,6 @@ export class LlmClient {
       reader.releaseLock();
     }
 
-    // flush any remaining buffered data lines (rare)
     buffer = buffer.trim();
     if (buffer.startsWith('data:')) {
       const data = buffer.slice('data:'.length).trim();
