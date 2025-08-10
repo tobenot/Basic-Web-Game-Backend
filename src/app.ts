@@ -4,9 +4,9 @@ import cors from '@fastify/cors';
 import * as jwt from 'jsonwebtoken';
 import { authRouter } from './routers/auth';
 import { userRouter } from './routers/user';
-import { announcementRouter } from './routers/announcement';
-import { corsDebugRouter } from './routers/cors-debug';
-import { echoRouter } from './routers/echo';
+import { announcementRouter } from './framework/routers/announcement';
+import { corsDebugRouter } from './framework/routers/cors-debug';
+import { echoRouter } from './framework/routers/echo';
 import { router } from './trpc';
 import { join } from 'path';
 import { corsPluginOptions, corsMiddleware } from './middleware';
@@ -89,7 +89,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   });
 
   // Register OpenAI-compatible proxy routes (both /v1/... and /api/v1/... aliases)
-  server.register(require('./routers/llm-proxy').llmProxyRoutes);
+  server.register(require('./framework/routers/llm-proxy').llmProxyRoutes);
   server.register((instance: any, _opts: any, done: any) => {
     instance.post('/api/v1/chat/completions', (req: any, reply: any) => {
       // delegate to the main handler by internally calling the same logic

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { publicProcedure, router } from '../trpc';
+import { publicProcedure, router } from '../../trpc';
 
 const inputSchema = z.object({
 	message: z.string().min(1).max(1000),
