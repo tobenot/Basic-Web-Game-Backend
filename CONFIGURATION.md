@@ -29,6 +29,7 @@ cp .env.example .env
 
 #### 邮件配置
 - `EMAIL_FROM`: 邮件发送地址（默认：noreply@sendmail.tobenot.top）
+- `EMAIL_FROM_NAME`: 邮件发件人显示名（默认：YourApp）
 
 #### 数据库配置
 - `DATABASE_URL`: PostgreSQL数据库连接字符串
@@ -56,6 +57,9 @@ CORS允许的源会根据环境自动配置：
 ### 📧 邮件链接
 
 邮件中的魔法链接会根据当前环境自动生成正确的URL。
+ - 使用前端URL（`FRONTEND_LOCAL_URL`/`FRONTEND_PRODUCTION_URL`）作为基准
+ - 将 `token` 以查询参数形式追加到URL：`?token=...`
+ - 若前端URL包含哈希路由（如 `.../#/path`），会在 `#` 之前插入查询参数（前端可直接读取）
 
 ### 🔍 前端API调用
 

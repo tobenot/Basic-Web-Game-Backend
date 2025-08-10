@@ -60,6 +60,8 @@ A modern, type-safe backend for web games built with Fastify, tRPC, and Prisma. 
    DATABASE_URL="file:./dev.db"
    JWT_SECRET="your-secret-key"
    RESEND_API_KEY="your-resend-api-key"
+   EMAIL_FROM="noreply@sendmail.tobenot.top"
+   EMAIL_FROM_NAME="YourApp"
    ```
 
 4. **Generate Prisma schema and run migrations**
@@ -81,6 +83,11 @@ The server will be available at `http://localhost:3000`
 - `POST /api/trpc/auth.sendMagicLink` - Send magic link to user email
 - `POST /api/trpc/auth.verifyToken` - Verify magic link token
 - `GET /api/trpc/auth.me` - Get current user info
+
+Magic link generation:
+- Uses frontend URL (`FRONTEND_LOCAL_URL` / `FRONTEND_PRODUCTION_URL`) as base
+- Appends `token` as a query param
+- If the frontend URL contains a hash route, the query is inserted before the hash so the frontend can read it
 
 ### User Management
 

@@ -9,7 +9,7 @@ export const config = {
   // 前端配置
   frontend: {
     // 本地开发前端URL
-    localDev: process.env.FRONTEND_LOCAL_URL || 'http://localhost:5174',
+    localDev: process.env.FRONTEND_LOCAL_URL || 'http://localhost:5173',
     // 生产环境前端URL
     production: process.env.FRONTEND_PRODUCTION_URL || 'https://tobenot.top/Basic-Web-Game/#/demo-with-backend',
   },
@@ -25,6 +25,7 @@ export const config = {
   // 邮件配置
   email: {
     from: process.env.EMAIL_FROM || 'noreply@sendmail.tobenot.top',
+    fromName: process.env.EMAIL_FROM_NAME || 'YourApp',
   },
   
   // 环境判断

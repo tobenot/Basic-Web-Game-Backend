@@ -13,6 +13,19 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const emailTemplatePath = path.join(__dirname, '../templates/magic-link-email.html');
 const emailTemplate = fs.readFileSync(emailTemplatePath, 'utf-8');
 
+function buildMagicLink(token: string): string {
+  const frontendUrl = config.getFrontendUrl();
+  if (frontendUrl.includes('#')) {
+    const [base, hash] = frontendUrl.split('#', 2);
+    const url = new URL(base);
+    url.searchParams.set('token', token);
+    return `${url.toString()}#${hash}`;
+  }
+  const url = new URL(frontendUrl);
+  url.searchParams.set('token', token);
+  return url.toString();
+}
+
 export const authRouter = router({
   healthCheck: publicProcedure
     .query(async () => {
@@ -43,10 +56,10 @@ export const authRouter = router({
         data: { token: hashedToken, userId: user.id, expiresAt },
       });
 
-      const inputForLink = { token: rawToken };
-      const magicLink = `${config.getBackendUrl()}/test.html?token=${rawToken}`;
+      const magicLink = buildMagicLink(rawToken);
 
-      const emailHtml = emailTemplate.replace('{{magicLink}}', magicLink);
+      const emailHtml = emailTemplate.replace(/\{\{magicLink\}\}/g, magicLink);
+      const emailText = `请点击以下链接登录:\n${magicLink}\n\n如果按钮无法点击，请将链接复制到浏览器中打开。该链接15分钟内有效。`;
 
       // 在开发环境下，为了方便调试，同时在控制台打印出魔法链接
       if (!config.isProduction) {
@@ -56,10 +69,11 @@ export const authRouter = router({
       // 真正发送邮件
       try {
         await resend.emails.send({
-          from: config.email.from,
+          from: `${config.email.fromName || 'YourApp'} <${config.email.from}>`,
           to: email,
           subject: '登录到 YourApp',
           html: emailHtml,
+          text: emailText,
         });
         console.log(`📧 Email sent successfully to ${email}`);
       } catch (emailError) {
