@@ -1,3 +1,72 @@
+### 推荐：一键部署包（Windows/Linux 一键 deploy）
+
+本文档已更新，原有的“手动拉代码 + PM2 + Nginx”步骤部分过时。现推荐使用项目内置的“一键部署包”，更像整合包：本地打包，服务器解压后点击 `deploy.bat`（Windows）或执行 `deploy.sh`（Linux）即可完成停服→装依赖（可选）→迁移（可选）→启动。
+
+#### 本地打包
+
+```bash
+npm i
+# 任选其一
+npm run pack:win        # 只打 Windows 包（full：包含 node_modules）
+npm run pack:linux      # 只打 Linux 包
+npm run pack:all        # 两个平台都打
+```
+
+打包产物位于 `dist/packages/`，名称形如：`bwb-win-full-vYYYYMMDD_HHMMSS.zip`、`bwb-linux-full-...zip`。
+
+#### 服务器部署（Windows）
+
+1) 解压 zip 到目标目录
+2) 在包目录准备 `.env.publish`（存在则优先）或 `.env`
+   - 最小示例：
+   ```env
+   NODE_ENV=production
+   HOST=0.0.0.0
+   PORT=8088
+   JWT_SECRET=请改为强随机
+   # 任选其一
+   DATABASE_URL=file:./data/prod.db
+   # DATABASE_URL=postgresql://user:pass@host:5432/dbname?schema=public
+   MIGRATE_ON_DEPLOY=1
+   ```
+   - 若用 SQLite：先 `mkdir data`
+3) 双击 `deploy.bat`
+4) 防火墙放行新端口（示例 8088）
+
+验证：`http://服务器IP:8088/health`、`/test.html`
+
+#### 服务器部署（Linux）
+
+1) 解压 zip 到目标目录
+2) 准备 `.env.publish`（同上）并（如需）`mkdir -p data`
+3) 执行：
+```bash
+bash deploy.sh
+```
+
+验证：`curl http://127.0.0.1:8088/health`
+
+#### 端口与 CORS
+
+- 改端口：在 `.env.publish` 设置 `PORT=你想要的端口`，同时放行防火墙；若有反代，更新转发目标端口。
+- 跨域：如有额外前端域名，设置 `CORS_ADDITIONAL_ORIGINS=https://a.com,https://b.com`。
+
+#### HTTPS/证书（简述）
+
+- Windows：建议 IIS 反向代理 443 → `http://127.0.0.1:PORT`，绑定证书。
+- Linux：用 Nginx/Caddy 反代。Nginx + Certbot：
+```bash
+sudo apt install -y nginx certbot python3-certbot-nginx
+sudo certbot --nginx -d api.yourdomain.com
+```
+
+#### 包类型选择
+
+- full：包含 `node_modules`，服务器更省事，包更大。
+- server：不含 `node_modules`，上线机安装依赖，包更小。
+- modules：仅 `node_modules`，用于只更新依赖的场景。
+
+—— 下文为“传统手动部署（保留）”，供需要精细化控制时参考 ——
 
 -----
 

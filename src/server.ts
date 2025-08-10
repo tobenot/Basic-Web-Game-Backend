@@ -1,5 +1,6 @@
 import { buildServer } from './app';
 import { config } from './config';
+export type { AppRouter } from './app';
 
 const start = async () => {
   console.log('🔍 Starting server...');
