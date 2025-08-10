@@ -36,7 +36,7 @@
   "license": "ISC",
   "type": "commonjs",
   "engines": {
-    "node": "20.x"
+    "node": ">=18"
   },
   "bugs": {
     "url": "https://github.com/tobenot/Basic-Web-Game-Backend/issues"
