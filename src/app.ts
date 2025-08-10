@@ -6,6 +6,7 @@ import { authRouter } from './routers/auth';
 import { userRouter } from './routers/user';
 import { announcementRouter } from './routers/announcement';
 import { corsDebugRouter } from './routers/cors-debug';
+import { echoRouter } from './routers/echo';
 import { router } from './trpc';
 import { join } from 'path';
 import { corsPluginOptions, corsMiddleware } from './middleware';
@@ -20,6 +21,7 @@ function createAppRouter() {
     user: userRouter,
     announcement: announcementRouter,
     corsDebug: corsDebugRouter,
+    echo: echoRouter,
   });
 }
 
