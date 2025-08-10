@@ -1,4 +1,4 @@
-import { LlmClient, ChatCompletionParams } from '../utils/llm-client';
+import { LlmClient, ChatCompletionParams } from '../framework/utils/llm-client';
 import { AiModelRequestOptions, AiModelRequestOptionsWithSignal, AiServiceResponse, AiStreamingChunk } from './types';
 import { AiRequestQueueService } from './AiRequestQueueService';
 
