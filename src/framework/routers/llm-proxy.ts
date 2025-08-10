@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyPluginCallback } from 'fastify';
-import { LlmClient, ChatCompletionParams } from '../../utils/llm-client';
+import { LlmClient, ChatCompletionParams } from '../utils/llm-client';
 
 export const llmProxyRoutes: FastifyPluginCallback = (server: FastifyInstance, _opts, done) => {
 	server.post('/v1/chat/completions', async (request, reply) => {

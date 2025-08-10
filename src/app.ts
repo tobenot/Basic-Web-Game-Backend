@@ -2,8 +2,8 @@ import { fastify, FastifyInstance } from 'fastify';
 import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
 import cors from '@fastify/cors';
 import * as jwt from 'jsonwebtoken';
-import { authRouter } from './routers/auth';
-import { userRouter } from './routers/user';
+import { authRouter } from './framework/routers/auth';
+import { userRouter } from './framework/routers/user';
 import { announcementRouter } from './framework/routers/announcement';
 import { corsDebugRouter } from './framework/routers/cors-debug';
 import { echoRouter } from './framework/routers/echo';
@@ -11,7 +11,7 @@ import { router } from './trpc';
 import { join } from 'path';
 import { corsPluginOptions, corsMiddleware } from './middleware';
 import { getCorsConfig } from './config/cors';
-import { testCors } from './utils/cors-test';
+import { testCors } from './framework/utils/cors-test';
 
 export type AppRouter = ReturnType<typeof createAppRouter>;
 

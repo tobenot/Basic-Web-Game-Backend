@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>安全登录 | Carrot Web Game</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; }
+        body { background-color: #f8fcf6; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; color: #2c3e29; }
+        .container { max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 5px 25px rgba(46, 125, 50, 0.1); }
+        .header { background: linear-gradient(to right, #4CAF50, #2E7D32); padding: 30px 40px; text-align: center; }
+        .header h1 { color: white; font-size: 26px; font-weight: 600; margin-bottom: 5px; }
+        .header p { color: rgba(255, 255, 255, 0.85); font-size: 16px; }
+        .content { padding: 40px; line-height: 1.6; }
+        .content p { margin-bottom: 25px; font-size: 16px; color: #4a4a4a; }
+        .login-button-container { text-align: center; margin: 35px 0; }
+        .login-button { display: inline-block; background: linear-gradient(to right, #43A047, #2E7D32); color: white; padding: 16px 45px; border-radius: 8px; font-weight: 600; font-size: 18px; text-decoration: none; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3); border: none; cursor: pointer; }
+        .login-button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4); }
+        .validity { display: flex; align-items: center; justify-content: center; background: #FFF8E1; color: #F57F17; padding: 12px; border-radius: 8px; font-size: 15px; font-weight: 500; margin: 25px 0; }
+        .validity svg { margin-right: 10px; }
+        .security-note { background: #E8F5E9; border-left: 4px solid #4CAF50; padding: 18px; border-radius: 0 8px 8px 0; margin-top: 30px; font-size: 14.5px; color: #2E7D32; }
+        .footer { padding: 25px; text-align: center; background: #f5f9f4; color: #5a6e56; font-size: 13px; border-top: 1px solid #e8f5e9; }
+        .tech-stack { display: flex; justify-content: center; gap: 12px; margin-top: 15px; flex-wrap: wrap; }
+        .tech-item { background: #e8f5e9; color: #2E7D32; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+        @media (max-width: 480px) { .content { padding: 25px; } .header { padding: 25px 20px; } .login-button { padding: 14px 35px; font-size: 16px; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>安全登录 Carrot Web Game</h1>
+            <p>只需点击即可访问您的账户</p>
+        </div>
+        <div class="content">
+            <p>您好！</p>
+            <p>我们已收到您的登录请求。请点击下方按钮直接安全登录您的账户：</p>
+            <div class="login-button-container">
+                <a href="{{magicLink}}" class="login-button">立即登录</a>
+            </div>
+            <p style="word-break: break-all; color:#2E7D32; font-size:14px; margin-top:10px;">
+                如果按钮无法点击，请将以下链接复制到浏览器中打开：<br/>
+                <a href="{{magicLink}}" style="color:#2E7D32;">{{magicLink}}</a>
+            </p>
+            <div class="validity">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                此链接将在15分钟后失效
+            </div>
+            <p>如果您未请求登录，请忽略此邮件。您的账户安全对我们至关重要。</p>
+            <div class="security-note">
+                <strong>安全提示：</strong> 请勿将此邮件或登录链接分享给任何人。我们的系统绝不会要求您提供密码。
+            </div>
+        </div>
+        <div class="footer">
+            <div class="tech-stack">
+                <div class="tech-item">Fastify</div>
+                <div class="tech-item">tRPC</div>
+                <div class="tech-item">Prisma</div>
+                <div class="tech-item">PostgreSQL</div>
+            </div>
+            <p>&copy; 2025 Carrot Web Game | 端到端类型安全架构</p>
+        </div>
+    </div>
+</body>
+</html>
+
+
