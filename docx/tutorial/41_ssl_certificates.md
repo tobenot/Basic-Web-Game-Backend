@@ -20,7 +20,7 @@
 2) 额外安装：URL Rewrite、Application Request Routing（ARR）
    - 可在微软官网/微软 Web 平台安装程序中安装
 
-### 步骤 2：创建站点与反向代理
+### 步骤 2：创建站点与反向代理（首次）
 
 1) 在 IIS 管理器中新建网站
    - 站点名：你的域名
@@ -29,11 +29,12 @@
 2) 启用反向代理
    - 在根节点“Application Request Routing Cache”→ Server Proxy Settings → 勾选 Enable Proxy
 3) 配置 URL Rewrite 反向代理到 Node
-   - 在站点下“URL Rewrite”→ Add Rule(s) → Reverse Proxy → 填写内网目标 `127.0.0.1:你的PORT`
+   - 在站点下“URL Rewrite”→ Add Rule(s) → Reverse Proxy → 填写内网目标，例如 `http://127.0.0.1:8088`
+   - 说明：证书绑定在域名，不绑定端口。无论反代到哪个后端端口，IIS 都只需在 443 为该域名终止 TLS 即可，后端端口无需证书。
 
 此时用 `http://你的域名/health` 应可访问到 Node。
 
-### 步骤 3：安装并运行 win-acme（wacs）签发证书
+### 步骤 3：安装并运行 win-acme（wacs）签发证书（首次）
 
 1) 下载 win-acme（wacs.exe）
    - 访问 `https://www.win-acme.com/` → Downloads → x64 便携版
@@ -47,9 +48,15 @@
 
 完成后，`https://你的域名` 生效。
 
-### 步骤 4：强制跳转 HTTPS（可选）
+### 步骤 4：强制跳转 HTTPS（可选，首次）
 
 在站点下“URL Rewrite”添加 HTTPS 重定向规则，将 HTTP 重定向到 HTTPS。
+
+### 后续新增后端端口（无需重新签证书）
+
+- 仅在该站点的“URL Rewrite”新增一条转发规则：
+  - 基于路径或主机头匹配，将流量转发到 `http://127.0.0.1:<新端口>`
+- 不需要新增/更换证书，原有 443 绑定与自动续期保持不变。
 
 ### 常见问题
 
@@ -64,14 +71,14 @@
 
 目标：Nginx 反向代理 443/80，Certbot 自动签发与续期。
 
-### 步骤 1：安装 Nginx 与 Certbot
+### 步骤 1：安装 Nginx 与 Certbot（首次）
 
 ```bash
 sudo apt update
 sudo apt install -y nginx certbot python3-certbot-nginx
 ```
 
-### 步骤 2：配置站点并反代到 Node
+### 步骤 2：配置站点并反代到 Node（首次）
 
 ```bash
 sudo nano /etc/nginx/sites-available/api.yourdomain.com
@@ -99,7 +106,7 @@ sudo systemctl reload nginx
 
 确保 `http://api.yourdomain.com/health` 可达。
 
-### 步骤 3：一键签发与自动续期
+### 步骤 3：一键签发与自动续期（首次）
 
 ```bash
 sudo certbot --nginx -d api.yourdomain.com
@@ -108,6 +115,24 @@ sudo certbot --nginx -d api.yourdomain.com
 选择强制跳转 HTTPS。完成后自动创建定时续期任务。
 
 验证：`https://api.yourdomain.com/health`
+
+### 后续新增后端端口（无需重新签证书）
+
+- 在同一 `server { listen 443 ssl; server_name api.yourdomain.com; }` 下新增 `location`，将不同路径转发到不同端口：
+
+```nginx
+server {
+	listen 443 ssl;
+	server_name api.yourdomain.com;
+	ssl_certificate /etc/letsencrypt/live/api.yourdomain.com/fullchain.pem;
+	ssl_certificate_key /etc/letsencrypt/live/api.yourdomain.com/privkey.pem;
+
+	location /svc1/ { proxy_pass http://127.0.0.1:8088/; }
+	location /svc2/ { proxy_pass http://127.0.0.1:8089/; }
+}
+```
+
+- 若按子域名拆分（`svc2.example.com`），可另建一个 `server` 块：若证书已覆盖（如通配符）可复用；否则为新域名签证书一次。
 
 ### 证书位置与续期
 
@@ -140,6 +165,16 @@ sudo systemctl start nginx
 - 生产建议用反向代理托管证书，不建议 Node 进程直接监听 443
 - 如确需 Node TLS，Linux 下使用 `fullchain.pem` 与 `privkey.pem`
 - Windows 下可在证书管理器导出 PFX，并在 Node 中加载
+
+---
+
+## 常见误区（重要）
+
+- 证书与域名绑定，不与端口绑定。一个域名后面有多个服务/端口时，复用同一张证书，建议由 IIS/Nginx 在 443 统一终止 TLS，再反代到不同后端端口。
+- 给每个后端端口单独配置证书是反模式，也增加运维复杂度。
+- 用 IP 访问无法通过域名证书校验，请始终用域名访问。
+- 多域名/子域名需覆盖相应域名：可用多域名证书（SAN）或通配符证书，或分别签多张证书。
+- 使用 CDN（如 Cloudflare）橙云代理时，ACME HTTP-01 可能失败：签发阶段可临时灰云，或使用 DNS-01。
 
 ---
 
