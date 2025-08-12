@@ -1,6 +1,7 @@
 import { buildServer } from './app';
 import { config } from './config';
 export type { AppRouter } from './app';
+import { setupGlobalHttpProxyFromEnv } from './framework/utils/http-proxy';
 
 const start = async () => {
   console.log('🔍 Starting server...');
@@ -12,6 +13,7 @@ const start = async () => {
   console.log('  - RESEND_API_KEY:', process.env.RESEND_API_KEY ? '已设置' : '未设置');
 
   try {
+    setupGlobalHttpProxyFromEnv();
     const server = await buildServer();
     console.log(`🔍 About to start listening on port ${config.server.port}...`);
     await server.listen({ port: config.server.port, host: config.server.host });

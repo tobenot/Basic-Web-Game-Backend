@@ -57,6 +57,8 @@
     "@types/node": "^20.14.12",
     "fastify": "^5.4.0",
     "jsonwebtoken": "^9.0.2",
+    "undici": "^6.19.8",
+    "undici-proxy-agent": "^7.0.0",
     "prisma": "^5.17.0",
     "resend": "^3.5.0",
     "zod": "^3.23.8"
