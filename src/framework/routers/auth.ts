@@ -39,7 +39,8 @@ export const authRouter = router({
 
 	requestLoginLink: publicProcedure
 		.input(z.object({ email: z.string().email() }))
-		.mutation(async ({ input: { email } }) => {
+		.mutation(async ({ input }: { input: { email: string } }) => {
+			const { email } = input;
 			const user = await prisma.user.upsert({
 				where: { email },
 				update: {},
@@ -81,7 +82,7 @@ export const authRouter = router({
 
 	verifyMagicToken: publicProcedure
 		.input(z.object({ token: z.string() }))
-		.query(async ({ input }) => {
+		.query(async ({ input }: { input: { token: string } }) => {
 			const hashedToken = createHash('sha256').update(input.token).digest('hex');
 			const authToken = await prisma.authToken.findUnique({ where: { token: hashedToken } });
 			if (!authToken || new Date() > authToken.expiresAt) {
