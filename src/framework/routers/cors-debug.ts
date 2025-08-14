@@ -18,7 +18,7 @@ export const corsDebugRouter = router({
 
 	testOrigin: publicProcedure
 		.input(z.object({ origin: z.string() }))
-		.query(({ input }) => {
+		.query(({ input }: { input: { origin: string } }) => {
 			const corsConfig = getCorsConfig();
 			const allowed = isOriginAllowed(input.origin, corsConfig);
 			return {
@@ -38,7 +38,7 @@ export const corsDebugRouter = router({
 			method: z.string().optional(),
 			headers: z.array(z.string()).optional()
 		}))
-		.query(({ input }) => {
+		.query(({ input }: { input: { origin: string; method?: string; headers?: string[] } }) => {
 			const corsConfig = getCorsConfig();
 			const originAllowed = isOriginAllowed(input.origin, corsConfig);
 			return {

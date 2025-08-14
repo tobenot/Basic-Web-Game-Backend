@@ -13,7 +13,7 @@ const inputSchema = z.object({
 export const echoRouter = router({
 	echo: publicProcedure
 		.input(inputSchema)
-		.mutation(async ({ input }) => {
+		.mutation(async ({ input }: { input: z.infer<typeof inputSchema> }) => {
 			return {
 				message: input.message,
 				messageLength: input.message.length,
