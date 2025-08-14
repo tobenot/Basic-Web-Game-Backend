@@ -1,5 +1,4 @@
-import { setGlobalDispatcher } from 'undici';
-import { ProxyAgent } from 'undici-proxy-agent';
+import { setGlobalDispatcher, ProxyAgent } from 'undici';
 
 export function setupGlobalHttpProxyFromEnv() {
 	const proxy = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || process.env.GLOBAL_HTTP_PROXY;

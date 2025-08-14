@@ -43,7 +43,7 @@
   "license": "ISC",
   "type": "commonjs",
   "engines": {
-    "node": ">=18"
+    "node": "18.x"
   },
   "bugs": {
     "url": "https://github.com/tobenot/Basic-Web-Game-Backend/issues"
@@ -58,7 +58,6 @@
     "fastify": "^5.4.0",
     "jsonwebtoken": "^9.0.2",
     "undici": "^6.19.8",
-    "undici-proxy-agent": "^7.0.0",
     "prisma": "^5.17.0",
     "resend": "^3.5.0",
     "zod": "^3.23.8"
