@@ -28,7 +28,7 @@
     "hooks:install": "bash scripts/install-git-hooks.sh",
     "test": "echo \"Error: no test specified\" && exit 1",
     "vercel-build": "npm run build",
-    "vercel:build": "node scripts/generate-prisma-schema.js && npx prisma generate && (npm run migrate:deploy)",
+    "vercel:build": "node scripts/generate-prisma-schema.js && npx prisma generate",
     "pack:win": "node scripts/pack.js win full",
     "pack:win:server": "node scripts/pack.js win server",
     "pack:win:modules": "node scripts/pack.js win modules",
