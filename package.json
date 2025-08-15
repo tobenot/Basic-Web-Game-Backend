@@ -35,7 +35,16 @@
     "pack:linux": "node scripts/pack.js linux full",
     "pack:linux:server": "node scripts/pack.js linux server",
     "pack:linux:modules": "node scripts/pack.js linux modules",
-    "pack:all": "node scripts/pack.js all full"
+    "pack:all": "node scripts/pack.js all full",
+    "db:up": "docker compose -f docker-compose.postgres.yml up -d",
+    "db:down": "docker compose -f docker-compose.postgres.yml down",
+    "env:pg:local": "export DATABASE_URL=postgres://dev:dev@localhost:5432/app?sslmode=disable",
+    "prisma:pg:gen": "dotenv -e .env -- node scripts/generate-prisma-schema.js && npx prisma generate",
+    "migrate:pg:dev": "DATABASE_URL=postgres://dev:dev@localhost:5432/app npx prisma migrate dev",
+    "migrate:pg:reset": "DATABASE_URL=postgres://dev:dev@localhost:5432/app npx prisma migrate reset --force",
+    "migrate:pg:reinit": "sh -lc 'rm -rf prisma/migrations && export DATABASE_URL=postgres://dev:dev@localhost:5432/app; node scripts/generate-prisma-schema.js; npx prisma generate; npx prisma migrate dev --name init'",
+    "studio:pg": "DATABASE_URL=postgres://dev:dev@localhost:5432/app npx prisma studio",
+    "dev:pg": "sh -lc 'export DATABASE_URL=postgres://dev:dev@localhost:5432/app; node scripts/generate-prisma-schema.js; npx prisma generate; ts-node-dev --inspect --respawn --transpile-only src/server.ts'"
   },
   "postinstall": "prisma generate",
   "repository": {
