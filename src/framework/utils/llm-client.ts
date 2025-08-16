@@ -25,7 +25,7 @@ export type ChatCompletionResponse = {
 	model: string;
 	choices: Array<{
 		index: number;
-		message: { role: 'assistant'; content: string };
+		message: { role: 'assistant'; content: string; reasoning_content?: string };
 		finish_reason: string | null;
 	}>;
 	usage?: unknown;
@@ -36,15 +36,22 @@ export class LlmClient {
 	private baseUrl: string;
 
 	constructor(options?: { apiKey?: string; baseUrl?: string }) {
-		this.apiKey = options?.apiKey || process.env.OPENAI_API_KEY || '';
-		this.baseUrl = (options?.baseUrl || process.env.OPENAI_BASE_URL || 'https://api.openai.com').replace(/\/$/, '');
-		if (!this.apiKey) {
-			throw new Error('OPENAI_API_KEY is not set. Provide it via env or constructor.');
+		const resolvedApiKey = options?.apiKey || process.env.OPENAI_API_KEY || process.env.DEEPSEEK_API_KEY || '';
+		let resolvedBase = options?.baseUrl || process.env.OPENAI_BASE_URL || process.env.DEEPSEEK_BASE_URL;
+		if (!resolvedBase) {
+			resolvedBase = !process.env.OPENAI_API_KEY && process.env.DEEPSEEK_API_KEY ? 'https://api.deepseek.com' : 'https://api.openai.com';
 		}
+		this.apiKey = resolvedApiKey;
+		this.baseUrl = resolvedBase.replace(/\/$/, '');
+		if (!this.apiKey) throw new Error('API key is not set. Set OPENAI_API_KEY or DEEPSEEK_API_KEY, or pass via constructor.');
+	}
+
+	private getChatCompletionsUrl() {
+		return this.baseUrl.endsWith('/v1') ? `${this.baseUrl}/chat/completions` : `${this.baseUrl}/v1/chat/completions`;
 	}
 
 	async createChatCompletion(params: ChatCompletionParams) {
-		const url = `${this.baseUrl}/v1/chat/completions`;
+		const url = this.getChatCompletionsUrl();
 		const res = await fetch(url, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}` },
@@ -58,7 +65,7 @@ export class LlmClient {
 	}
 
 	async fetchChatCompletionStream(params: ChatCompletionParams, abortSignal?: AbortSignal) {
-		const url = `${this.baseUrl}/v1/chat/completions`;
+		const url = this.getChatCompletionsUrl();
 		const res = await fetch(url, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}` },
@@ -69,7 +76,7 @@ export class LlmClient {
 	}
 
 	async *streamChatCompletion(params: ChatCompletionParams, abortSignal?: AbortSignal): AsyncGenerator<string, void, unknown> {
-		const url = `${this.baseUrl}/v1/chat/completions`;
+		const url = this.getChatCompletionsUrl();
 		const res = await fetch(url, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}` },
@@ -99,10 +106,10 @@ export class LlmClient {
 							if (data === '[DONE]') return;
 							try {
 								const json = JSON.parse(data);
+								const reasoning = json?.choices?.[0]?.delta?.reasoning_content;
+								if (typeof reasoning === 'string' && reasoning.length > 0) yield reasoning;
 								const content = json?.choices?.[0]?.delta?.content;
-								if (typeof content === 'string' && content.length > 0) {
-									yield content;
-								}
+								if (typeof content === 'string' && content.length > 0) yield content;
 							} catch {}
 						}
 					}
@@ -117,10 +124,10 @@ export class LlmClient {
 			if (data !== '[DONE]') {
 				try {
 					const json = JSON.parse(data);
+					const reasoning = json?.choices?.[0]?.delta?.reasoning_content;
+					if (typeof reasoning === 'string' && reasoning.length > 0) yield reasoning;
 					const content = json?.choices?.[0]?.delta?.content;
-					if (typeof content === 'string' && content.length > 0) {
-						yield content;
-					}
+					if (typeof content === 'string' && content.length > 0) yield content;
 				} catch {}
 			}
 		}
