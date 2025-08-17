@@ -65,16 +65,24 @@ export class GeminiClient {
 			if (typeof fr === 'string') finish = fr.toLowerCase();
 			return { index: idx, message: { role: 'assistant' as const, content: text }, finish_reason: finish };
 		});
+		const usage = {
+			prompt_tokens: data?.usageMetadata?.promptTokenCount ?? 0,
+			completion_tokens: data?.usageMetadata?.candidatesTokenCount ?? 0,
+			total_tokens: data?.usageMetadata?.totalTokenCount ?? 0,
+		}
 		return {
 			id: `gen-${Date.now()}`,
 			object: 'chat.completion',
 			created,
 			model: params.model,
 			choices,
+			usage
 		};
 	}
 }
 
 export default GeminiClient;
+
+
 
 

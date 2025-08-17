@@ -28,7 +28,11 @@ export type ChatCompletionResponse = {
 		message: { role: 'assistant'; content: string; reasoning_content?: string };
 		finish_reason: string | null;
 	}>;
-	usage?: unknown;
+	usage?: {
+		prompt_tokens: number;
+		completion_tokens: number;
+		total_tokens: number;
+	};
 };
 
 export class LlmClient {
