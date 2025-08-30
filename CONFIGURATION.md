@@ -27,6 +27,13 @@ cp .env.example .env
 - `BACKEND_LOCAL_URL`: 本地开发后端URL（默认：http://localhost:3000）
 - `BACKEND_PRODUCTION_URL`: 生产环境后端URL（默认：https://api.tobenot.top）
 
+**端口配置说明：**
+- **云平台部署**（Vercel等）：通常不需要端口号，平台自动管理
+- **自建服务器部署**：需要指定端口号，例如：
+  - `http://服务器IP:8088` （HTTP协议）
+  - `https://api.yourdomain.com:8443` （HTTPS非标准端口）
+  - `https://api.yourdomain.com` （HTTPS标准端口443，可省略）
+
 #### 邮件配置
 - `EMAIL_FROM`: 邮件发送地址（默认：noreply@sendmail.tobenot.top）
 - `EMAIL_FROM_NAME`: 邮件发件人显示名（默认：YourApp）

@@ -18,8 +18,8 @@ export const config = {
   backend: {
     // 本地开发服务器URL
     localDev: process.env.BACKEND_LOCAL_URL || 'http://localhost:3000',
-    // 生产环境服务器URL
-    production: process.env.BACKEND_PRODUCTION_URL || 'https://bwb.tobenot.top',
+    // 生产环境服务器URL（支持自定义端口）
+    production: process.env.BACKEND_PRODUCTION_URL || 'https://api.tobenot.top',
   },
   
   // 邮件配置

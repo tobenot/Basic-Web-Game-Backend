@@ -226,14 +226,14 @@ async function main() {
 	if (platform === 'win' || platform === 'all') {
 		const winScript = createWindowsDeployScript(appName, version, buildType)
 		const winEntries = entriesBase.concat([{ type: 'content', content: winScript, dest: 'deploy.bat' }])
-		const outPath = path.join('dist', 'packages', `${appName}-win-${buildType}-v${version}.zip`)
+		const outPath = path.join('packages', `${appName}-win-${buildType}-v${version}.zip`)
 		await createZip(outPath, winEntries)
 		outputs.push(outPath)
 	}
 	if (platform === 'linux' || platform === 'all') {
 		const shScript = createLinuxDeployScript(appName, version, buildType)
 		const linuxEntries = entriesBase.concat([{ type: 'content', content: shScript, dest: 'deploy.sh', mode: 0o755 }])
-		const outPath = path.join('dist', 'packages', `${appName}-linux-${buildType}-v${version}.zip`)
+		const outPath = path.join('packages', `${appName}-linux-${buildType}-v${version}.zip`)
 		await createZip(outPath, linuxEntries)
 		outputs.push(outPath)
 	}
