@@ -20,6 +20,7 @@ model User {
   email      String      @unique
   createdAt  DateTime    @default(now())
   authTokens AuthToken[]
+  loginChallenges LoginChallenge[]
 }
 
 // 一次性登录令牌模型
@@ -30,4 +31,21 @@ model AuthToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+// 邮件登录挑战（同时支持魔法链接与邮件验证码）
+model LoginChallenge {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email          String
+  magicTokenHash String?
+  codeHash       String?
+  codeAttempts   Int       @default(0)
+  expiresAt      DateTime
+  consumedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([email])
+  @@index([magicTokenHash])
 }

@@ -7,6 +7,7 @@ import * as jwt from 'jsonwebtoken';
 import * as fs from 'fs';
 import * as path from 'path';
 import { config } from '../../config';
+import { getAuthConfig } from '../../config/auth';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -47,21 +48,49 @@ export const authRouter = router({
 				create: { email },
 			});
 
+			// Dual challenge: magic link + OTP
 			const rawToken = randomBytes(32).toString('hex');
-			const hashedToken = createHash('sha256').update(rawToken).digest('hex');
-			const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+			const magicTokenHash = createHash('sha256').update(rawToken).digest('hex');
 
-			await prisma.authToken.create({
-				data: { token: hashedToken, userId: user.id, expiresAt },
+			const otpLength = config.authFlow.otpLength;
+			const otpCode = generateNumericOtp(otpLength);
+			const codeHash = createHash('sha256').update(otpCode).digest('hex');
+
+			const magicTtlMs = config.authFlow.magicLinkTtlSec * 1000;
+			const otpTtlMs = config.authFlow.otpTtlSec * 1000;
+			const createdAt = new Date();
+			const expiresAt = new Date(createdAt.getTime() + Math.max(magicTtlMs, otpTtlMs));
+
+			const challenge = await prisma.loginChallenge.create({
+				data: {
+					userId: user.id,
+					email,
+					magicTokenHash,
+					codeHash,
+					expiresAt,
+				},
 			});
 
 			const magicLink = buildMagicLink(rawToken);
 
-			const emailHtml = emailTemplate.replace(/\{\{magicLink\}\}/g, magicLink);
-			const emailText = `请点击以下链接登录:\n${magicLink}\n\n如果按钮无法点击，请将链接复制到浏览器中打开。该链接15分钟内有效。`;
+			// Render email with both link and OTP
+			let emailHtml = emailTemplate.replace(/\{\{magicLink\}\}/g, magicLink);
+			emailHtml = emailHtml.replace(/\{\{magicExpiryMinutes\}\}/g, `${Math.round(config.authFlow.magicLinkTtlSec / 60)}`);
+			emailHtml = emailHtml.replace(/\{\{otpCode\}\}/g, otpCode);
+			emailHtml = emailHtml.replace(/\{\{otpExpiryMinutes\}\}/g, `${Math.round(config.authFlow.otpTtlSec / 60)}`);
+
+			const emailText = [
+				`请点击以下链接登录:`,
+				magicLink,
+				'',
+				`或使用验证码登录（${Math.round(config.authFlow.otpTtlSec / 60)}分钟内有效）： ${otpCode}`,
+				'',
+				`如果按钮无法点击，请将链接复制到浏览器中打开。`
+			].join('\n');
 
 			if (!config.isProduction) {
 				console.log(`✨ Magic Link for ${email}: ${magicLink}`);
+				console.log(`🔢 OTP for ${email}: ${otpCode}`);
 			}
 
 			try {
@@ -77,25 +106,113 @@ export const authRouter = router({
 				console.error(`❌ Failed to send email to ${email}:`, emailError);
 			}
 
-			return { success: true };
+			return { success: true, challengeId: challenge.id };
 		}),
 
 	verifyMagicToken: publicProcedure
 		.input(z.object({ token: z.string() }))
 		.query(async ({ input }: { input: { token: string } }) => {
 			const hashedToken = createHash('sha256').update(input.token).digest('hex');
+
+			// Prefer new LoginChallenge flow
+			const challenge = await prisma.loginChallenge.findFirst({
+				where: { magicTokenHash: hashedToken },
+			});
+
+			const now = new Date();
+			const authCfg = getAuthConfig();
+
+			if (challenge) {
+				if (challenge.consumedAt) {
+					throw new Error('链接已被使用。');
+				}
+				// method-specific TTL check using createdAt + ttl
+				const createdAt = challenge.createdAt as unknown as Date;
+				const magicDeadline = new Date(createdAt.getTime() + config.authFlow.magicLinkTtlSec * 1000);
+				if (now > magicDeadline) {
+					throw new Error('链接无效或已过期。');
+				}
+
+				const sessionToken = jwt.sign(
+					{ userId: challenge.userId, amr: ['magic_link'] },
+					authCfg.jwtSecret as any,
+					{ expiresIn: authCfg.tokenExpiry as any }
+				);
+				await prisma.loginChallenge.update({
+					where: { id: challenge.id },
+					data: { consumedAt: new Date(), magicTokenHash: null, codeHash: null },
+				});
+				return { sessionToken };
+			}
+
+			// Legacy fallback to AuthToken
 			const authToken = await prisma.authToken.findUnique({ where: { token: hashedToken } });
 			if (!authToken || new Date() > authToken.expiresAt) {
 				throw new Error('链接无效或已过期。');
 			}
 			const sessionToken = jwt.sign(
-				{ userId: authToken.userId },
-				process.env.JWT_SECRET!,
-				{ expiresIn: '7d' }
+				{ userId: authToken.userId, amr: ['magic_link'] },
+				authCfg.jwtSecret as any,
+				{ expiresIn: authCfg.tokenExpiry as any }
 			);
 			await prisma.authToken.delete({ where: { id: authToken.id } });
 			return { sessionToken };
 		}),
+
+	verifyEmailCode: publicProcedure
+		.input(z.object({ challengeId: z.string(), code: z.string().min(4).max(12) }))
+		.mutation(async ({ input }: { input: { challengeId: string; code: string } }) => {
+			const { challengeId, code } = input;
+			const challenge = await prisma.loginChallenge.findUnique({ where: { id: challengeId } });
+			if (!challenge) {
+				throw new Error('验证码无效或已过期。');
+			}
+			if (challenge.consumedAt) {
+				throw new Error('该登录请求已被使用。');
+			}
+
+			const now = new Date();
+			const createdAt = challenge.createdAt as unknown as Date;
+			const otpDeadline = new Date(createdAt.getTime() + config.authFlow.otpTtlSec * 1000);
+			if (now > otpDeadline) {
+				throw new Error('验证码已过期。');
+			}
+
+			if ((challenge.codeAttempts || 0) >= config.authFlow.otpMaxAttempts) {
+				throw new Error('尝试次数过多，请重新请求验证码。');
+			}
+
+			const providedHash = createHash('sha256').update(code).digest('hex');
+			if (!challenge.codeHash || providedHash !== challenge.codeHash) {
+				await prisma.loginChallenge.update({
+					where: { id: challenge.id },
+					data: { codeAttempts: (challenge.codeAttempts || 0) + 1 },
+				});
+				throw new Error('验证码错误。');
+			}
+
+			const authCfg = getAuthConfig();
+			const sessionToken = jwt.sign(
+				{ userId: challenge.userId, amr: ['otp'] },
+				authCfg.jwtSecret as any,
+				{ expiresIn: authCfg.tokenExpiry as any }
+			);
+
+			await prisma.loginChallenge.update({
+				where: { id: challenge.id },
+				data: { consumedAt: new Date(), codeHash: null, magicTokenHash: null },
+			});
+
+			return { sessionToken };
+		}),
 });
 
-
+function generateNumericOtp(length: number): string {
+	const digits = '0123456789';
+	let otp = '';
+	const bytes = randomBytes(length);
+	for (let i = 0; i < length; i++) {
+		otp += digits[bytes[i] % 10];
+	}
+	return otp;
+}
