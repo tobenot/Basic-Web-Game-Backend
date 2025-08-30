@@ -1,3 +1,60 @@
+# 数据库快速实践指南
+
+## 🚀 快速开始（5分钟搞定）
+
+### 1. 启动本地数据库
+```bash
+docker compose -f docker-compose.postgres.yml up -d
+```
+
+### 2. 更新数据库结构（当你修改了 schema.prisma 或遇到表不存在错误）
+```bash
+npm run migrate:dev
+```
+
+### 3. 启动开发服务器
+```bash
+npm run dev
+```
+
+### 4. 查看数据库内容
+```bash
+npm run studio
+```
+
+### 5. 部署到线上数据库
+```bash
+npm run migrate:prod
+```
+
+---
+
+## 🔧 常见问题快速解决
+
+### 表不存在错误（如 `LoginChallenge` 表不存在）
+```bash
+npm run migrate:dev
+```
+
+### 数据库连接失败
+1. 检查 Docker 是否运行：`docker ps`
+2. 重启数据库：`docker compose -f docker-compose.postgres.yml restart`
+
+### 迁移锁文件错误
+```bash
+rm -rf prisma/migrations
+npm run prisma:generate:schema
+npx prisma generate
+npx prisma migrate dev --name init
+```
+
+### 线上部署失败
+1. 检查 `.env.publish` 文件配置是否正确
+2. 确认 Supabase 数据库连接正常
+3. 重新运行：`npm run migrate:prod`
+
+---
+
 ### **最终的数据库工作流程 (小白指南)**
 
 下面是你的日常工作流程（本地与线上统一使用 Postgres，避免与 SQLite 的方言/语义差异导致的坑）。
