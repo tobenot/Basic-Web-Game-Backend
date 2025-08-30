@@ -4,6 +4,16 @@ import { GeminiClient } from '../utils/gemini-client';
 import { isAIAuthRequired } from '../../config/auth';
 import { createAuthContext } from '../../middleware/auth';
 
+const writeAndDrain = (reply: FastifyReply, data: string): Promise<void> => {
+	return new Promise((resolve) => {
+		if (!reply.raw.write(data)) {
+			reply.raw.once('drain', resolve);
+		} else {
+			process.nextTick(resolve);
+		}
+	});
+};
+
 const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyReply) => {
 	const body = request.body as ChatCompletionParams | undefined;
 
@@ -39,16 +49,115 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 	const isGemini = /^gemini[-_]/i.test(body.model);
 	const isDeepseek = /^deepseek(?:[-_]|$)/i.test(body.model);
 	if (isGemini) {
+		const gemini = new GeminiClient();
 		if (body.stream) {
-			return reply.code(400).send({ error: 'Gemini stream is not supported in this proxy.' });
-		}
-		try {
-			const gemini = new GeminiClient();
-			const result = await gemini.createChatCompletion({ ...body, stream: false });
-			return reply.code(200).send(result);
-		} catch (err: any) {
-			const text = typeof err?.message === 'string' ? err.message : 'Upstream error';
-			return reply.code(500).send({ error: text });
+			reply.raw.setHeader('Content-Type', 'text/event-stream');
+			reply.raw.setHeader('Cache-Control', 'no-cache');
+			reply.raw.setHeader('Connection', 'keep-alive');
+			const origin = request.headers.origin;
+			if (origin) {
+				reply.raw.setHeader('Access-Control-Allow-Origin', origin);
+				reply.raw.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+				reply.raw.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+			}
+
+			const abortController = new AbortController();
+			const onClose = () => { abortController.abort(); };
+			reply.raw.on('close', onClose);
+
+			try {
+				const upstreamRes = await gemini.fetchChatCompletionStream(body, abortController.signal);
+				if (!upstreamRes.ok || !upstreamRes.body) {
+					const text = await upstreamRes.text().catch(() => '');
+					reply.code(upstreamRes.status);
+					reply.raw.write(`: upstream error ${text}\n\n`);
+				} else {
+					const query = request.query as any;
+					const reasoningToContent = query?.reasoning_to_content === '1' || query?.reasoning_to_content === 'true';
+					const reader = upstreamRes.body.getReader();
+					const decoder = new TextDecoder();
+					let messageId = `gen-${Date.now()}`;
+					let created = Math.floor(Date.now() / 1000);
+					
+					let fullJsonString = '';
+					while (true) {
+						const { value, done } = await reader.read();
+						if (done) break;
+						if (!value) continue;
+						const chunk = decoder.decode(value, { stream: true });
+						fullJsonString += chunk;
+					}
+
+					try {
+						const geminiArray = JSON.parse(fullJsonString);
+						for (const geminiData of geminiArray) {
+							const candidates = geminiData?.candidates || [];
+							let reasoningContent = '';
+							
+							if (geminiData?.thinking) {
+								reasoningContent = geminiData.thinking;
+							}
+							
+							for (const candidate of candidates) {
+								let text = '';
+								let candidateReasoning = '';
+
+								const parts = candidate?.content?.parts || [];
+								for (const part of parts) {
+									if (part?.thought) {
+										candidateReasoning += part.text || '';
+									} else {
+										text += part.text || '';
+									}
+								}
+								
+								if (reasoningContent && !candidateReasoning) {
+									candidateReasoning = reasoningContent;
+								}
+								
+								const chunk = {
+									id: messageId,
+									object: 'chat.completion.chunk',
+									created,
+									model: body.model,
+									choices: [{
+										index: 0,
+										delta: reasoningToContent ? 
+											{ content: candidateReasoning || text } :
+											{
+												content: text,
+												...(candidateReasoning && { reasoning_content: candidateReasoning })
+											},
+										finish_reason: candidate?.finishReason ? candidate.finishReason.toLowerCase() : null
+									}]
+								};
+								const sseData = `data: ${JSON.stringify(chunk)}\n\n`;
+								await writeAndDrain(reply, sseData);
+							}
+						}
+					} catch (e) {
+						console.warn('Failed to parse full Gemini response:', fullJsonString, e);
+					}
+					reply.raw.write('data: [DONE]\n\n');
+				}
+			} catch (err: any) {
+				try {
+					const message = typeof err?.message === 'string' ? err.message : 'Upstream error';
+					reply.raw.write(`: error ${message}\n\n`);
+				} catch {}
+			} finally {
+				reply.raw.off('close', onClose);
+				reply.raw.end();
+			}
+			return reply;
+		} else {
+			try {
+				const result = await gemini.createChatCompletion({ ...body, stream: false });
+				return reply.code(200).send(result);
+			} catch (err: any) {
+				const text = typeof err?.message === 'string' ? err.message : 'Upstream error';
+				return reply.code(500).send({ error: text });
+			}
 		}
 	}
 

@@ -2,6 +2,7 @@ export type ChatMessage = {
 	role: 'system' | 'user' | 'assistant' | 'tool' | 'function';
 	content: string;
 	name?: string;
+	reasoning_content?: string;
 };
 
 export type ChatCompletionParams = {
