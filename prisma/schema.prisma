@@ -20,8 +20,6 @@ model User {
   email      String      @unique
   createdAt  DateTime    @default(now())
   authTokens AuthToken[]
-  balanceCents Int       @default(0)
-  aiUsages   AiUsage[]
 }
 
 // 一次性登录令牌模型
@@ -32,22 +30,4 @@ model AuthToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
-}
-
-// AI 用量记录
-model AiUsage {
-  id               String   @id @default(cuid())
-  userId           String
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  provider         String
-  model            String
-  isStream         Boolean  @default(false)
-  promptTokens     Int      @default(0)
-  completionTokens Int      @default(0)
-  totalTokens      Int      @default(0)
-  costCents        Int      @default(0)
-  currency         String   @default("USD")
-  estimated        Boolean  @default(false)
-  requestId        String?
-  createdAt        DateTime @default(now())
 }
