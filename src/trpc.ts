@@ -9,11 +9,9 @@ const isAuthed = t.middleware(({ ctx, next }) => {
   if (isTRPCAuthRequired() && !ctx.user) {
     throw new TRPCError({ code: 'UNAUTHORIZED', message: '请先登录。' });
   }
-  return next({
-    ctx: { user: ctx.user },
-  });
+  return next({ ctx });
 });
 
 export const router = t.router;
 export const publicProcedure = t.procedure;
-export const protectedProcedure = t.procedure.use(isAuthed); 
+export const protectedProcedure = t.procedure.use(isAuthed);
