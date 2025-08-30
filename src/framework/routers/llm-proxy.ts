@@ -65,6 +65,15 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 		reply.raw.setHeader('Content-Type', 'text/event-stream');
 		reply.raw.setHeader('Cache-Control', 'no-cache');
 		reply.raw.setHeader('Connection', 'keep-alive');
+		// Manually set CORS headers for streaming responses
+		const origin = request.headers.origin;
+		if (origin) {
+			// In a real app, you should validate the origin against a whitelist.
+			// For development, we can reflect the origin.
+			reply.raw.setHeader('Access-Control-Allow-Origin', origin);
+			reply.raw.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+			reply.raw.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+		}
 
 		const abortController = new AbortController();
 		const onClose = () => { abortController.abort(); };
