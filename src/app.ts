@@ -9,8 +9,9 @@ import { corsDebugRouter } from './framework/routers/cors-debug';
 import { echoRouter } from './framework/routers/echo';
 import { router } from './trpc';
 import { join } from 'path';
-import { corsPluginOptions, corsMiddleware } from './middleware';
+import { corsPluginOptions, corsMiddleware, createAuthContext } from './middleware';
 import { getCorsConfig } from './config/cors';
+import { getAuthConfig } from './config/auth';
 import { testCors } from './framework/utils/cors-test';
 
 export type AppRouter = ReturnType<typeof createAppRouter>;
@@ -30,8 +31,11 @@ export async function buildServer(): Promise<FastifyInstance> {
   const server = fastify({ maxParamLength: 5000 });
 
   const corsConfig = getCorsConfig();
+  const authConfig = getAuthConfig();
+  
   console.log('🔧 CORS配置:', JSON.stringify(corsConfig, null, 2));
   console.log('🔧 允许的源:', corsConfig.origins);
+  console.log('🔐 鉴权配置:', JSON.stringify(authConfig, null, 2));
 
   if (corsConfig.enabled) {
     server.register(cors, corsPluginOptions);
@@ -63,17 +67,7 @@ export async function buildServer(): Promise<FastifyInstance> {
     trpcOptions: {
       router: appRouter,
       createContext: async ({ req }: { req: any }) => {
-        const authHeader = req.headers.authorization;
-        if (authHeader) {
-          try {
-            const token = authHeader.split(' ')[1];
-            const user = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
-            return { user };
-          } catch {
-            return { user: null };
-          }
-        }
-        return { user: null };
+        return await createAuthContext(req);
       },
       onError: ({ error, path, type, ctx }: { error: any; path?: string; type?: string; ctx?: any }) => {
         console.error('❌ tRPC Error:', {
@@ -88,28 +82,9 @@ export async function buildServer(): Promise<FastifyInstance> {
     },
   });
 
-  // Register OpenAI-compatible proxy routes (both /v1/... and /api/v1/... aliases)
+  // Register OpenAI-compatible proxy routes.
+  // This plugin now handles both /v1/chat/completions and the /api/v1/chat/completions alias.
   server.register(require('./framework/routers/llm-proxy').llmProxyRoutes);
-  server.register((instance: any, _opts: any, done: any) => {
-    instance.post('/api/v1/chat/completions', (req: any, reply: any) => {
-      // delegate to the main handler by internally calling the same logic
-      (instance as any).inject({
-        method: 'POST',
-        url: '/v1/chat/completions',
-        payload: req.body,
-        headers: req.headers,
-      }).then((res: any) => {
-        reply
-          .code(res.statusCode)
-          .headers(res.headers)
-          .send(res.rawPayload || res.payload);
-      }).catch((err: any) => {
-        reply.code(500).send({ error: String(err?.message || err) });
-      });
-    });
-    done();
-  });
-
 
   server.register(require('@fastify/static'), {
     root: process.cwd(),
