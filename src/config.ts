@@ -27,6 +27,20 @@ export const config = {
     from: process.env.EMAIL_FROM || 'noreply@sendmail.tobenot.top',
     fromName: process.env.EMAIL_FROM_NAME || 'YourApp',
   },
+
+  // 登录与验证码配置（可通过环境变量覆盖）
+  authFlow: {
+    // 单封邮件同时包含魔法链接与验证码
+    dualInOneEmail: process.env.AUTH_DUAL_IN_ONE_EMAIL !== 'false',
+    // 魔法链接有效期（秒）
+    magicLinkTtlSec: Number(process.env.AUTH_MAGIC_TTL_SEC || 15 * 60),
+    // 邮件验证码有效期（秒）
+    otpTtlSec: Number(process.env.AUTH_OTP_TTL_SEC || 10 * 60),
+    // 验证码长度
+    otpLength: Number(process.env.AUTH_OTP_LENGTH || 6),
+    // 验证码最大尝试次数
+    otpMaxAttempts: Number(process.env.AUTH_OTP_MAX_ATTEMPTS || 5),
+  },
   
   // 环境判断
   isProduction: process.env.NODE_ENV === 'production',

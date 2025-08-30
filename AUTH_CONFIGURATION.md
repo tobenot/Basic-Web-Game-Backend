@@ -20,6 +20,24 @@ JWT_SECRET=your-secret-key-here
 JWT_EXPIRY=7d
 ```
 
+### 邮件登录（魔法链接 + 邮件验证码）
+```bash
+# 是否在同一封邮件内同时包含魔法链接与验证码 (默认: true)
+AUTH_DUAL_IN_ONE_EMAIL=true
+
+# 魔法链接有效期（秒）（默认: 900 = 15分钟）
+AUTH_MAGIC_TTL_SEC=900
+
+# 邮件验证码有效期（秒）（默认: 600 = 10分钟）
+AUTH_OTP_TTL_SEC=600
+
+# 邮件验证码长度（默认: 6）
+AUTH_OTP_LENGTH=6
+
+# 邮件验证码最大尝试次数（默认: 5）
+AUTH_OTP_MAX_ATTEMPTS=5
+```
+
 ## 配置示例
 
 ### 1. 完全关闭鉴权 (开发环境)

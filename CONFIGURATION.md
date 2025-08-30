@@ -31,6 +31,13 @@ cp .env.example .env
 - `EMAIL_FROM`: 邮件发送地址（默认：noreply@sendmail.tobenot.top）
 - `EMAIL_FROM_NAME`: 邮件发件人显示名（默认：YourApp）
 
+#### 登录与验证码配置
+- `AUTH_DUAL_IN_ONE_EMAIL`: 是否在同一封邮件内同时包含魔法链接与验证码（默认：true）
+- `AUTH_MAGIC_TTL_SEC`: 魔法链接有效期（秒）（默认：900）
+- `AUTH_OTP_TTL_SEC`: 邮件验证码有效期（秒）（默认：600）
+- `AUTH_OTP_LENGTH`: 邮件验证码长度（默认：6）
+- `AUTH_OTP_MAX_ATTEMPTS`: 验证码最大尝试次数（默认：5）
+
 #### 数据库配置
 - `DATABASE_URL`: PostgreSQL数据库连接字符串
 

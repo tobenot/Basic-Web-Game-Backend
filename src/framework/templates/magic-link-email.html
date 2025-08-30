@@ -33,7 +33,7 @@
         </div>
         <div class="content">
             <p>您好！</p>
-            <p>我们已收到您的登录请求。请点击下方按钮直接安全登录您的账户：</p>
+            <p>我们已收到您的登录请求。请点击下方按钮直接安全登录您的账户，或使用下方验证码登录：</p>
             <div class="login-button-container">
                 <a href="{{magicLink}}" class="login-button">立即登录</a>
             </div>
@@ -46,7 +46,13 @@
                     <circle cx="12" cy="12" r="10"></circle>
                     <polyline points="12 6 12 12 16 14"></polyline>
                 </svg>
-                此链接将在15分钟后失效
+                链接有效期：{{magicExpiryMinutes}} 分钟
+            </div>
+
+            <div style="margin-top:24px; padding:16px; background:#f6fbf5; border:1px dashed #cde6cd; border-radius:8px;">
+                <p style="margin-bottom:8px; color:#2E7D32; font-weight:600;">或使用验证码登录：</p>
+                <div style="font-size:28px; letter-spacing:6px; font-weight:700; color:#2E7D32; text-align:center;">{{otpCode}}</div>
+                <p style="margin-top:8px; color:#4a4a4a; font-size:14px; text-align:center;">验证码有效期：{{otpExpiryMinutes}} 分钟</p>
             </div>
             <p>如果您未请求登录，请忽略此邮件。您的账户安全对我们至关重要。</p>
             <div class="security-note">
