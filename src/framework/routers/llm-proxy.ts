@@ -119,6 +119,14 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 													text += part.text || '';
 												}
 												
+												const delta: { content?: string; reasoning_content?: string } = {};
+												if (text) {
+													delta.content = text;
+												}
+												if (candidate?.reasoning_content) {
+													delta.reasoning_content = candidate.reasoning_content;
+												}
+
 												const sseChunk = {
 													id: messageId,
 													object: 'chat.completion.chunk',
@@ -126,7 +134,7 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 													model: body.model,
 													choices: [{
 														index: 0,
-														delta: { content: text },
+														delta: delta,
 														finish_reason: candidate?.finishReason ? candidate.finishReason.toLowerCase() : null
 													}]
 												};
