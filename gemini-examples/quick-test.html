@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini API 快速测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #4CAF50;
+        }
+        .result {
+            background: #f0f8ff;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #2196F3;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success {
+            border-left-color: #4CAF50;
+            background: #f0fff0;
+        }
+        .error {
+            border-left-color: #f44336;
+            background: #fff0f0;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #2196F3;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🤖 Gemini API 快速测试</h1>
+    <p>测试部署在 <code>tyo.tobenot.top</code> 的 Gemini API 连接和功能。</p>
+
+    <div class="info">
+        <h3>📋 测试说明</h3>
+        <p>这个页面会测试以下功能：</p>
+        <ul>
+            <li>服务器健康状态</li>
+            <li>基本聊天功能（需要认证）</li>
+            <li>流式聊天功能</li>
+            <li>CORS 配置</li>
+        </ul>
+        <p><strong>注意：</strong> 基本聊天功能需要用户登录，如果测试失败是正常的。</p>
+    </div>
+
+    <div class="test-section">
+        <h2>1. 服务器健康检查</h2>
+        <button onclick="testHealth()">测试健康状态</button>
+        <div id="health-result" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. 基本聊天功能测试</h2>
+        <button onclick="testBasicChat()">测试基本聊天</button>
+        <div id="basic-result" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. 流式聊天功能测试</h2>
+        <button onclick="testStreamingChat()">测试流式聊天</button>
+        <div id="streaming-result" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. CORS 配置测试</h2>
+        <button onclick="testCORS()">测试 CORS</button>
+        <div id="cors-result" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. 完整功能测试</h2>
+        <button onclick="runAllTests()">运行所有测试</button>
+        <div id="all-result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://tyo.tobenot.top';
+
+        function showResult(elementId, content, isSuccess = true) {
+            const element = document.getElementById(elementId);
+            element.textContent = content;
+            element.className = `result ${isSuccess ? 'success' : 'error'}`;
+            element.style.display = 'block';
+        }
+
+        async function testHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('health-result', `✅ 服务器健康状态正常\n${JSON.stringify(data, null, 2)}`, true);
+                } else {
+                    showResult('health-result', `❌ 服务器健康检查失败: ${response.status}`, false);
+                }
+            } catch (error) {
+                showResult('health-result', `❌ 连接错误: ${error.message}`, false);
+            }
+        }
+
+        async function testBasicChat() {
+            try {
+                const response = await fetch(`${API_BASE}/v1/chat/completions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model: 'gemini-1.5-pro',
+                        messages: [
+                            { role: 'user', content: '你好！请简单回复"测试成功"。' }
+                        ],
+                        temperature: 0.7,
+                        max_tokens: 100,
+                        stream: false
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('basic-result', `✅ 基本聊天功能正常\n${JSON.stringify(data, null, 2)}`, true);
+                } else {
+                    const errorText = await response.text();
+                    showResult('basic-result', `❌ 基本聊天功能失败: ${response.status}\n${errorText}`, false);
+                }
+            } catch (error) {
+                showResult('basic-result', `❌ 基本聊天功能错误: ${error.message}`, false);
+            }
+        }
+
+        async function testStreamingChat() {
+            try {
+                const response = await fetch(`${API_BASE}/v1/chat/completions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model: 'gemini-1.5-pro',
+                        messages: [
+                            { role: 'user', content: '请说"流式测试成功"' }
+                        ],
+                        temperature: 0.7,
+                        max_tokens: 50,
+                        stream: true
+                    })
+                });
+
+                if (response.ok && response.body) {
+                    let result = '✅ 流式聊天功能正常\n';
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let receivedData = false;
+
+                    try {
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            
+                            const chunk = decoder.decode(value, { stream: true });
+                            const lines = chunk.split('\n');
+                            
+                            for (const line of lines) {
+                                if (line.startsWith('data: ')) {
+                                    const data = line.slice(6);
+                                    if (data === '[DONE]') {
+                                        if (receivedData) {
+                                            result += '\n✅ 流式数据接收完成';
+                                            showResult('streaming-result', result, true);
+                                            return;
+                                        }
+                                    } else {
+                                        try {
+                                            const json = JSON.parse(data);
+                                            const content = json.choices?.[0]?.delta?.content;
+                                            if (content) {
+                                                result += content;
+                                                receivedData = true;
+                                            }
+                                        } catch (e) {
+                                            // 忽略解析错误
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } finally {
+                        reader.releaseLock();
+                    }
+                    showResult('streaming-result', result, receivedData);
+                } else {
+                    const errorText = await response.text();
+                    showResult('streaming-result', `❌ 流式聊天功能失败: ${response.status}\n${errorText}`, false);
+                }
+            } catch (error) {
+                showResult('streaming-result', `❌ 流式聊天功能错误: ${error.message}`, false);
+            }
+        }
+
+        async function testCORS() {
+            try {
+                const response = await fetch(`${API_BASE}/v1/chat/completions`, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': 'https://example.com',
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type'
+                    }
+                });
+
+                const corsHeaders = {
+                    'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+                    'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+                    'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers')
+                };
+
+                const result = `CORS 头信息:\n${JSON.stringify(corsHeaders, null, 2)}`;
+                
+                if (corsHeaders['Access-Control-Allow-Origin']) {
+                    showResult('cors-result', `✅ CORS 配置正常\n${result}`, true);
+                } else {
+                    showResult('cors-result', `❌ CORS 配置可能有问题\n${result}`, false);
+                }
+            } catch (error) {
+                showResult('cors-result', `❌ CORS 测试失败: ${error.message}`, false);
+            }
+        }
+
+        async function runAllTests() {
+            const results = [];
+            
+            // 测试健康状态
+            try {
+                const healthResponse = await fetch(`${API_BASE}/health`);
+                if (healthResponse.ok) {
+                    results.push('✅ 服务器健康状态正常');
+                } else {
+                    results.push('❌ 服务器健康检查失败');
+                }
+            } catch (error) {
+                results.push('❌ 服务器连接失败');
+            }
+
+            // 测试流式聊天
+            try {
+                const streamResponse = await fetch(`${API_BASE}/v1/chat/completions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: 'gemini-1.5-pro',
+                        messages: [{ role: 'user', content: 'OK' }],
+                        max_tokens: 10,
+                        stream: true
+                    })
+                });
+                
+                if (streamResponse.ok) {
+                    results.push('✅ 流式聊天功能正常');
+                } else {
+                    results.push('❌ 流式聊天功能失败');
+                }
+            } catch (error) {
+                results.push('❌ 流式聊天功能错误');
+            }
+
+            // 测试 CORS
+            try {
+                const corsResponse = await fetch(`${API_BASE}/v1/chat/completions`, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': 'https://example.com',
+                        'Access-Control-Request-Method': 'POST'
+                    }
+                });
+                
+                if (corsResponse.headers.get('Access-Control-Allow-Origin')) {
+                    results.push('✅ CORS 配置正常');
+                } else {
+                    results.push('❌ CORS 配置有问题');
+                }
+            } catch (error) {
+                results.push('❌ CORS 测试失败');
+            }
+
+            const summary = results.join('\n');
+            const allPassed = results.filter(r => r.startsWith('✅')).length >= 2;
+            showResult('all-result', `📊 测试结果摘要:\n${summary}\n\n🎯 总体评估: ${allPassed ? '✅ 服务器基本功能正常' : '❌ 部分功能有问题'}`, allPassed);
+        }
+    </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # Gemini API 前端使用指南
 
-这个项目提供了使用部署在 `tko.tobenot.top` 的 Gemini API 的完整前端解决方案。
+这个项目提供了使用部署在 `tyo.tobenot.top` 的 Gemini API 的完整前端解决方案。
 
 ## 📁 文件说明
 
@@ -27,7 +27,7 @@
     <script>
         // 创建客户端实例
         const client = new GeminiClient({
-            baseUrl: 'https://tko.tobenot.top',
+            baseUrl: 'https://tyo.tobenot.top',
             defaultModel: 'gemini-1.5-pro'
         });
 
@@ -84,7 +84,7 @@ const reply2 = await conversation.sendMessage('我刚才说了什么？');
 
 ```javascript
 const client = new GeminiClient({
-    baseUrl: 'https://tko.tobenot.top',        // API 基础 URL
+    baseUrl: 'https://tyo.tobenot.top',        // API 基础 URL
     defaultModel: 'gemini-1.5-pro',           // 默认模型
     defaultTemperature: 0.7,                  // 默认温度 (0.0-1.0)
     defaultMaxTokens: 2000                    // 默认最大令牌数
@@ -233,7 +233,7 @@ try {
 
 如果你的前端应用运行在不同的域名下，确保服务器已正确配置 CORS。服务器支持以下域名：
 
-- `https://tko.tobenot.top`
+- `https://tyo.tobenot.top`
 - `https://tobenot.top`
 - `http://localhost:5173` (开发环境)
 - `http://127.0.0.1:5173` (开发环境)
@@ -267,7 +267,7 @@ try {
 
 5. **网络连接**: 确保网络连接稳定，特别是在使用流式响应时。
 
-6. **域名解析**: 如果遇到连接问题，请检查域名 `tko.tobenot.top` 是否可以正常解析。
+6. **域名解析**: 如果遇到连接问题，请检查域名 `tyo.tobenot.top` 是否可以正常解析。
 
 ## 🔧 故障排除
 
@@ -275,7 +275,7 @@ try {
 
 1. **网络连接失败**
    - 检查网络连接是否正常
-   - 确认域名 `tko.tobenot.top` 可以正常解析
+   - 确认域名 `tyo.tobenot.top` 可以正常解析
    - 尝试使用其他网络环境
 
 2. **CORS 错误**
@@ -307,7 +307,7 @@ node test-gemini-api.js
 如果遇到问题，请检查：
 
 1. 网络连接是否正常
-2. 服务器是否正常运行 (`https://tko.tobenot.top/health`)
+2. 服务器是否正常运行 (`https://tyo.tobenot.top/health`)
 3. 浏览器控制台是否有错误信息
 4. 请求参数是否正确
 5. 域名解析是否正常

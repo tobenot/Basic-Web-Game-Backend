@@ -9,7 +9,7 @@
 
 ### 2. 服务器配置
 - [ ] 服务器已启动并运行在正确的端口
-- [ ] 域名 `tko.tobenot.top` 已正确解析到服务器 IP
+- [ ] 域名 `tyo.tobenot.top` 已正确解析到服务器 IP
 - [ ] SSL 证书已正确配置（HTTPS）
 - [ ] 防火墙允许相应端口的访问
 
@@ -21,7 +21,7 @@
 ## 🌐 前端配置
 
 ### 1. 基础设置
-- [ ] 使用正确的 API 基础 URL：`https://tko.tobenot.top`
+- [ ] 使用正确的 API 基础 URL：`https://tyo.tobenot.top`
 - [ ] 客户端库 `gemini-client.js` 已正确引入
 - [ ] 错误处理机制已实现
 

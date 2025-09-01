@@ -4,7 +4,7 @@
  */
 class GeminiClient {
     constructor(options = {}) {
-        this.baseUrl = options.baseUrl || 'https://tko.tobenot.top';
+        this.baseUrl = options.baseUrl || 'https://tyo.tobenot.top';
         this.defaultModel = options.defaultModel || 'gemini-1.5-pro';
         this.defaultTemperature = options.defaultTemperature || 0.7;
         this.defaultMaxTokens = options.defaultMaxTokens || 2000;

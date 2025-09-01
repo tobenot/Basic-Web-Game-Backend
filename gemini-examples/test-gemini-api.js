@@ -5,7 +5,7 @@
  * 用于测试部署在 tko.tobenot.top 的 Gemini API 是否正常工作
  */
 
-const API_BASE = 'https://tko.tobenot.top';
+const API_BASE = 'https://tyo.tobenot.top';
 
 // 测试函数
 async function testHealth() {

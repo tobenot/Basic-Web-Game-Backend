@@ -9,7 +9,7 @@
 
 class GeminiClientNode {
     constructor(options = {}) {
-        this.baseUrl = options.baseUrl || 'https://tko.tobenot.top';
+        this.baseUrl = options.baseUrl || 'https://tyo.tobenot.top';
         this.defaultModel = options.defaultModel || 'gemini-1.5-pro';
         this.defaultTemperature = options.defaultTemperature || 0.7;
         this.defaultMaxTokens = options.defaultMaxTokens || 2000;
@@ -131,7 +131,7 @@ class GeminiClientNode {
 // 使用示例
 async function main() {
     const client = new GeminiClientNode({
-        baseUrl: 'https://tko.tobenot.top',
+        baseUrl: 'https://tyo.tobenot.top',
         defaultModel: 'gemini-1.5-pro'
     });
 
