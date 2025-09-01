@@ -33,7 +33,7 @@ A modern, type-safe backend for web games built with Fastify, tRPC, and Prisma. 
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 22+ 
 - npm or yarn
 - Database (SQLite for development, PostgreSQL for production)
 
