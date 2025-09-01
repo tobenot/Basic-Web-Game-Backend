@@ -58,7 +58,7 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 			if (origin) {
 				reply.raw.setHeader('Access-Control-Allow-Origin', origin);
 				reply.raw.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-				reply.raw.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+				reply.raw.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-api-key, x-goog-api-key');
 			}
 
 			const abortController = new AbortController();
@@ -181,7 +181,7 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 			// For development, we can reflect the origin.
 			reply.raw.setHeader('Access-Control-Allow-Origin', origin);
 			reply.raw.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-			reply.raw.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+			reply.raw.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-api-key, x-goog-api-key');
 		}
 
 		const abortController = new AbortController();

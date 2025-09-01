@@ -1,11 +1,9 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { getCorsConfig, isOriginAllowed } from '../config/cors';
 
-// 获取CORS配置
-const corsConfig = getCorsConfig();
-
 // 设置CORS响应头
 function setCorsHeaders(reply: FastifyReply, origin: string | undefined) {
+  const corsConfig = getCorsConfig();
   const isAllowed = isOriginAllowed(origin, corsConfig);
 
   // 始终为缓存一致性设置 Vary 头
@@ -27,6 +25,7 @@ function setCorsHeaders(reply: FastifyReply, origin: string | undefined) {
 
 // CORS中间件
 export async function corsMiddleware(request: FastifyRequest, reply: FastifyReply) {
+  const corsConfig = getCorsConfig();
   const origin = request.headers.origin;
 
   // 记录CORS相关信息
@@ -59,12 +58,15 @@ export async function corsMiddleware(request: FastifyRequest, reply: FastifyRepl
 }
 
 // 创建CORS插件配置
-export const corsPluginOptions = {
-  origin: corsConfig.origins,
-  methods: corsConfig.methods,
-  allowedHeaders: corsConfig.allowedHeaders,
-  credentials: corsConfig.credentials,
-  maxAge: corsConfig.maxAge,
-  preflightContinue: corsConfig.preflightContinue,
-  optionsSuccessStatus: corsConfig.optionsSuccessStatus
-};
+export const corsPluginOptions = (() => {
+  const corsConfig = getCorsConfig();
+  return {
+    origin: corsConfig.origins,
+    methods: corsConfig.methods,
+    allowedHeaders: corsConfig.allowedHeaders,
+    credentials: corsConfig.credentials,
+    maxAge: corsConfig.maxAge,
+    preflightContinue: corsConfig.preflightContinue,
+    optionsSuccessStatus: corsConfig.optionsSuccessStatus
+  };
+})();

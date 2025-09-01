@@ -50,7 +50,9 @@ export function getCorsConfig(): CorsConfig {
       'x-trpc-source', 
       'X-Requested-With', 
       'Accept',
-      'Origin'
+      'Origin',
+      'x-api-key',
+      'x-goog-api-key'
     ],
     credentials: true,
     maxAge: Number(process.env.CORS_MAX_AGE) || 86400, // 默认24小时

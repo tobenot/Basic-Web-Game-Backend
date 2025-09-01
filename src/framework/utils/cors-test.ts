@@ -46,6 +46,23 @@ export class CorsTester {
 		commonOrigins.forEach(origin => { const result = this.testOrigin(origin); console.log(`${result.allowed ? '✅' : '❌'} ${origin}`); });
 		console.log('='.repeat(50));
 	}
+
+	testApiKeyHeaders() {
+		console.log('🔑 测试API密钥头部配置:');
+		console.log('='.repeat(50));
+		const requiredHeaders = ['x-api-key', 'x-goog-api-key'];
+		const allowedHeaders = this.corsConfig.allowedHeaders;
+		
+		requiredHeaders.forEach(header => {
+			const isAllowed = allowedHeaders.includes(header);
+			console.log(`${isAllowed ? '✅' : '❌'} ${header}: ${isAllowed ? '允许' : '不允许'}`);
+		});
+		
+		console.log(`\n所有允许的头部: ${allowedHeaders.join(', ')}`);
+		console.log('='.repeat(50));
+		
+		return requiredHeaders.every(header => allowedHeaders.includes(header));
+	}
 }
 
 export function testCors(origin?: string) {
@@ -57,6 +74,7 @@ export function testCors(origin?: string) {
 	} else {
 		tester.printConfig();
 		tester.testCommonOrigins();
+		tester.testApiKeyHeaders();
 	}
 }
 

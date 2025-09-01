@@ -61,7 +61,7 @@ npx prisma migrate dev --name init
 
 #### 开始前：安装与环境准备（Windows）
 
-- 必装：Docker Desktop（含 Compose v2）、Node.js 18（含 npm）、Git
+- 必装：Docker Desktop（含 Compose v2）、Node.js 22（含 npm）、Git
 
 - 一键安装（PowerShell 管理员）
 ```powershell
