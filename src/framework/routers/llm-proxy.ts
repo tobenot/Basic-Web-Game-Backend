@@ -3,6 +3,7 @@ import { LlmClient, ChatCompletionParams } from '../utils/llm-client';
 import { GeminiClient } from '../utils/gemini-client';
 import { isAIAuthRequired } from '../../config/auth';
 import { createAuthContext } from '../../middleware/auth';
+import { featurePasswordAuth } from '../../middleware/feature-passwords';
 
 const writeAndDrain = (reply: FastifyReply, data: string): Promise<void> => {
 	return new Promise((resolve) => {
@@ -48,6 +49,8 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 
 	const isGemini = /^gemini[-_]/i.test(body.model);
 	const isDeepseek = /^deepseek(?:[-_]|$)/i.test(body.model);
+	const modelType = isGemini ? 'gemini' : isDeepseek ? 'deepseek' : 'unknown';
+
 	if (isGemini) {
 		const gemini = new GeminiClient();
 		if (body.stream) {
@@ -275,9 +278,24 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 	}
 };
 
+const getLlmPermission = (request: FastifyRequest): string | null => {
+	const body = request.body as ChatCompletionParams | undefined;
+	if (!body?.model) {
+		return 'llm-all'; // Fallback if model is not present
+	}
+	if (/^gemini[-_]/i.test(body.model)) {
+		return 'llm-gemini';
+	}
+	if (/^deepseek(?:[-_]|$)/i.test(body.model)) {
+		return 'llm-deepseek';
+	}
+	return 'llm-all'; // Default for other models
+};
+
+
 export const llmProxyRoutes: FastifyPluginCallback = (server: FastifyInstance, _opts, done) => {
-	server.post('/v1/chat/completions', chatCompletionsHandler);
-	server.post('/api/v1/chat/completions', chatCompletionsHandler);
+	server.post('/v1/chat/completions', { preHandler: [featurePasswordAuth(getLlmPermission)] }, chatCompletionsHandler);
+	server.post('/api/v1/chat/completions', { preHandler: [featurePasswordAuth(getLlmPermission)] }, chatCompletionsHandler);
 	done();
 };
 
