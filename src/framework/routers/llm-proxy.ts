@@ -79,64 +79,70 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 					let messageId = `gen-${Date.now()}`;
 					let created = Math.floor(Date.now() / 1000);
 					
-					let fullJsonString = '';
+					let buffer = '';
 					while (true) {
 						const { value, done } = await reader.read();
 						if (done) break;
 						if (!value) continue;
 						const chunk = decoder.decode(value, { stream: true });
-						fullJsonString += chunk;
-					}
-
-					try {
-						const geminiArray = JSON.parse(fullJsonString);
-						for (const geminiData of geminiArray) {
-							const candidates = geminiData?.candidates || [];
-							let reasoningContent = '';
-							
-							if (geminiData?.thinking) {
-								reasoningContent = geminiData.thinking;
-							}
-							
-							for (const candidate of candidates) {
-								let text = '';
-								let candidateReasoning = '';
-
-								const parts = candidate?.content?.parts || [];
-								for (const part of parts) {
-									if (part?.thought) {
-										candidateReasoning += part.text || '';
-									} else {
-										text += part.text || '';
+						buffer += chunk;
+						// Gemini's streaming response is a JSON array that comes in chunks.
+						// It's not guaranteed that each chunk is a complete JSON object.
+						// It's also not NDJSON. It's a single JSON array.
+						// So we cannot simply parse line by line.
+						// A simple way to handle this is to find JSON objects using bracket matching.
+						
+						// This is a very basic parser. It assumes that the stream is a series of JSON objects.
+						// A more robust solution might be needed if the structure is more complex.
+						let lastPos = 0;
+						for (let i = 0; i < buffer.length; i++) {
+							if (buffer[i] === '{') {
+								let braceCount = 1;
+								for (let j = i + 1; j < buffer.length; j++) {
+									if (buffer[j] === '{') {
+										braceCount++;
+									} else if (buffer[j] === '}') {
+										braceCount--;
+									}
+									if (braceCount === 0) {
+										const jsonString = buffer.substring(i, j + 1);
+										try {
+											const geminiData = JSON.parse(jsonString);
+											const candidates = geminiData?.candidates || [];
+											for (const candidate of candidates) {
+												let text = '';
+												const parts = candidate?.content?.parts || [];
+												for (const part of parts) {
+													text += part.text || '';
+												}
+												
+												const sseChunk = {
+													id: messageId,
+													object: 'chat.completion.chunk',
+													created,
+													model: body.model,
+													choices: [{
+														index: 0,
+														delta: { content: text },
+														finish_reason: candidate?.finishReason ? candidate.finishReason.toLowerCase() : null
+													}]
+												};
+												const sseData = `data: ${JSON.stringify(sseChunk)}\n\n`;
+												await writeAndDrain(reply, sseData);
+											}
+										} catch (e) {
+											// Incomplete JSON object, wait for more data
+										}
+										i = j;
+										lastPos = j + 1;
+										break;
 									}
 								}
-								
-								if (reasoningContent && !candidateReasoning) {
-									candidateReasoning = reasoningContent;
-								}
-								
-								const chunk = {
-									id: messageId,
-									object: 'chat.completion.chunk',
-									created,
-									model: body.model,
-									choices: [{
-										index: 0,
-										delta: reasoningToContent ? 
-											{ content: candidateReasoning || text } :
-											{
-												content: text,
-												...(candidateReasoning && { reasoning_content: candidateReasoning })
-											},
-										finish_reason: candidate?.finishReason ? candidate.finishReason.toLowerCase() : null
-									}]
-								};
-								const sseData = `data: ${JSON.stringify(chunk)}\n\n`;
-								await writeAndDrain(reply, sseData);
 							}
 						}
-					} catch (e) {
-						console.warn('Failed to parse full Gemini response:', fullJsonString, e);
+						if (lastPos > 0) {
+							buffer = buffer.slice(lastPos);
+						}
 					}
 					reply.raw.write('data: [DONE]\n\n');
 				}
