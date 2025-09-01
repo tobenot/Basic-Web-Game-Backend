@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini API 使用示例</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .example {
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #4CAF50;
+        }
+        .code {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .output {
+            background: #f0f8ff;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #2196F3;
+            margin-top: 10px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .chat-container {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .user-message {
+            background: #e3f2fd;
+            margin-left: 20%;
+        }
+        .assistant-message {
+            background: #f3e5f5;
+            margin-right: 20%;
+        }
+    </style>
+</head>
+<body>
+    <h1>🤖 Gemini API 使用示例</h1>
+    <p>这个页面展示了如何使用部署在 <code>tko.tobenot.top</code> 的 Gemini API。</p>
+
+    <!-- 引入客户端库 -->
+    <script src="gemini-client.js"></script>
+
+    <div class="example">
+        <h2>1. 基本使用</h2>
+        <div class="code">
+// 创建客户端实例
+const client = new GeminiClient({
+    baseUrl: 'https://tko.tobenot.top',
+    defaultModel: 'gemini-1.5-pro'
+});
+
+// 发送简单消息
+const response = await client.sendMessage('你好！');
+console.log(response);
+        </div>
+        <button onclick="testBasicUsage()">测试基本使用</button>
+        <div id="basic-output" class="output" style="display: none;"></div>
+    </div>
+
+    <div class="example">
+        <h2>2. 流式响应</h2>
+        <div class="code">
+// 流式发送消息
+await client.sendMessageStream('请写一首关于春天的诗', (chunk, fullContent) => {
+    console.log('收到数据块:', chunk);
+    console.log('完整内容:', fullContent);
+});
+        </div>
+        <button onclick="testStreaming()">测试流式响应</button>
+        <div id="streaming-output" class="output" style="display: none;"></div>
+    </div>
+
+    <div class="example">
+        <h2>3. 对话会话</h2>
+        <div class="code">
+// 创建对话会话
+const conversation = client.createConversation();
+
+// 添加系统消息
+conversation.addSystemMessage('你是一个友好的助手，请用中文回答。');
+
+// 发送消息并保持对话历史
+const reply1 = await conversation.sendMessage('你好！');
+const reply2 = await conversation.sendMessage('我刚才说了什么？');
+        </div>
+        <button onclick="testConversation()">测试对话会话</button>
+        <div id="conversation-output" class="output" style="display: none;"></div>
+    </div>
+
+    <div class="example">
+        <h2>4. 实时聊天界面</h2>
+        <div class="chat-container">
+            <div id="chat-messages"></div>
+            <div style="margin-top: 20px;">
+                <input type="text" id="chat-input" placeholder="输入消息..." style="width: 70%; padding: 10px;">
+                <button onclick="sendChatMessage()">发送</button>
+                <button onclick="clearChat()">清空</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 创建全局客户端实例
+        const client = new GeminiClient({
+            baseUrl: 'https://tko.tobenot.top',
+            defaultModel: 'gemini-1.5-pro'
+        });
+
+        // 创建全局对话会话
+        const conversation = client.createConversation();
+
+        // 1. 基本使用测试
+        async function testBasicUsage() {
+            const output = document.getElementById('basic-output');
+            output.style.display = 'block';
+            output.innerHTML = '正在发送请求...';
+
+            try {
+                const response = await client.sendMessage('你好！请简单介绍一下你自己。');
+                output.innerHTML = `<strong>AI 回复:</strong><br>${response}`;
+            } catch (error) {
+                output.innerHTML = `<strong>错误:</strong><br>${error.message}`;
+            }
+        }
+
+        // 2. 流式响应测试
+        async function testStreaming() {
+            const output = document.getElementById('streaming-output');
+            output.style.display = 'block';
+            output.innerHTML = '正在接收流式响应...';
+
+            try {
+                let fullContent = '';
+                await client.sendMessageStream('请写一首关于春天的短诗', (chunk, content) => {
+                    fullContent = content;
+                    output.innerHTML = `<strong>流式响应:</strong><br>${content}`;
+                });
+            } catch (error) {
+                output.innerHTML = `<strong>错误:</strong><br>${error.message}`;
+            }
+        }
+
+        // 3. 对话会话测试
+        async function testConversation() {
+            const output = document.getElementById('conversation-output');
+            output.style.display = 'block';
+            output.innerHTML = '正在进行对话测试...';
+
+            try {
+                // 清空之前的对话
+                conversation.clear();
+                
+                // 添加系统消息
+                conversation.addSystemMessage('你是一个友好的助手，请用中文回答。');
+
+                // 发送第一条消息
+                const reply1 = await conversation.sendMessage('你好！');
+                
+                // 发送第二条消息
+                const reply2 = await conversation.sendMessage('我刚才说了什么？');
+
+                output.innerHTML = `
+                    <strong>第一条消息回复:</strong><br>${reply1}<br><br>
+                    <strong>第二条消息回复:</strong><br>${reply2}<br><br>
+                    <strong>对话历史:</strong><br>${JSON.stringify(conversation.getMessages(), null, 2)}
+                `;
+            } catch (error) {
+                output.innerHTML = `<strong>错误:</strong><br>${error.message}`;
+            }
+        }
+
+        // 4. 实时聊天界面
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const messagesContainer = document.getElementById('chat-messages');
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            // 添加用户消息
+            const userDiv = document.createElement('div');
+            userDiv.className = 'message user-message';
+            userDiv.innerHTML = `<strong>你:</strong> ${message}`;
+            messagesContainer.appendChild(userDiv);
+
+            // 清空输入框
+            input.value = '';
+
+            // 添加助手消息占位符
+            const assistantDiv = document.createElement('div');
+            assistantDiv.className = 'message assistant-message';
+            assistantDiv.innerHTML = '<strong>AI:</strong> <em>正在思考...</em>';
+            messagesContainer.appendChild(assistantDiv);
+
+            try {
+                // 发送消息
+                const response = await conversation.sendMessage(message);
+                assistantDiv.innerHTML = `<strong>AI:</strong> ${response}`;
+            } catch (error) {
+                assistantDiv.innerHTML = `<strong>AI:</strong> <em style="color: red;">错误: ${error.message}</em>`;
+            }
+
+            // 滚动到底部
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function clearChat() {
+            document.getElementById('chat-messages').innerHTML = '';
+            conversation.clear();
+        }
+
+        // 回车键发送消息
+        document.getElementById('chat-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendChatMessage();
+            }
+        });
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 添加系统消息到对话会话
+            conversation.addSystemMessage('你是一个友好的AI助手，请用中文回答用户的问题。');
+        });
+    </script>
+</body>
+</html>
