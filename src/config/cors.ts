@@ -52,7 +52,8 @@ export function getCorsConfig(): CorsConfig {
       'Accept',
       'Origin',
       'x-api-key',
-      'x-goog-api-key'
+      'x-goog-api-key',
+      'x-feature-password'
     ],
     credentials: true,
     maxAge: Number(process.env.CORS_MAX_AGE) || 86400, // 默认24小时
