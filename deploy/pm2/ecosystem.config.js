@@ -11,6 +11,7 @@ module.exports = {
       max_memory_restart: '512M',
       env: {
         NODE_ENV: 'production',
+        CORS_ADDITIONAL_ORIGINS: 'https://tyo.tobenot.top',
       },
       out_file: `/var/log/${pkg.name.replace(/^@.*\//, '')}/out.log`,
       error_file: `/var/log/${pkg.name.replace(/^@.*\//, '')}/err.log`,
