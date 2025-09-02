@@ -69,8 +69,20 @@ export class GeminiClient {
 		const created = Math.floor(Date.now() / 1000);
 		const choices: ChatCompletionResponse['choices'] = candidates.map((c, idx) => {
 			const parts: any[] = c?.content?.parts || [];
-			const text = parts.map(p => typeof p?.text === 'string' ? p.text : '').join('');
-			const reasoningContent = c?.reasoning_content || '';
+			let text = '';
+			let reasoningContent = '';
+			for (const p of parts) {
+				const partText = typeof p?.text === 'string' ? p.text : '';
+				const isThought = (p as any)?.thought === true || (p as any)?.inlineThought === true || (p as any)?.role === 'thought';
+				if (isThought) {
+					reasoningContent += partText;
+				} else {
+					text += partText;
+				}
+			}
+			if (!reasoningContent && typeof c?.reasoning_content === 'string') {
+				reasoningContent = c.reasoning_content as string;
+			}
 			let finish: string | null = null;
 			const fr = c?.finishReason;
 			if (typeof fr === 'string') finish = fr.toLowerCase();

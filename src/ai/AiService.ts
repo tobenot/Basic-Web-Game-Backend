@@ -55,7 +55,18 @@ export class AiService {
 		try {
 			const stream = this.client.streamChatCompletion(params, options.signal);
 			for await (const chunk of stream) {
-				aggregated.content += chunk;
+				let parsed: any = chunk;
+				if (typeof chunk === 'string') {
+					try { parsed = JSON.parse(chunk); } catch { parsed = {}; }
+				}
+				if (parsed && typeof parsed.reasoning === 'string') {
+					aggregated.reasoning_content = (aggregated.reasoning_content || '') + parsed.reasoning;
+				} else if (parsed && typeof parsed.content === 'string') {
+					aggregated.content += parsed.content;
+				} else if (typeof chunk === 'string') {
+					// Fallback for old behavior
+					aggregated.content += chunk;
+				}
 				aggregated.timestamp = new Date().toISOString();
 				onChunk({ current_message: { ...aggregated }, is_finished: false });
 			}
