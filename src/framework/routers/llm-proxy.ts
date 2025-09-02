@@ -113,18 +113,46 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 											const geminiData = JSON.parse(jsonString);
 											const candidates = geminiData?.candidates || [];
 											for (const candidate of candidates) {
+												// Split candidate parts into reasoning vs content
 												let text = '';
+												let candidateReasoning = '';
 												const parts = candidate?.content?.parts || [];
 												for (const part of parts) {
-													text += part.text || '';
+													const partText = typeof part?.text === 'string' ? part.text : '';
+													const isThought = (part as any)?.thought === true || (part as any)?.inlineThought === true || (part as any)?.role === 'thought';
+													if (isThought) {
+														candidateReasoning += partText;
+													} else {
+														text += partText;
+													}
 												}
-												
+
+												// Also consider top-level thinking or candidate.reasoning_content when present
+												let aggregatedReasoning = '' as string;
+												if (typeof (geminiData as any)?.thinking === 'string' && (geminiData as any).thinking) {
+													aggregatedReasoning = (geminiData as any).thinking as string;
+												}
+												if (candidateReasoning) {
+													aggregatedReasoning = candidateReasoning;
+												}
+												if (!aggregatedReasoning && typeof candidate?.reasoning_content === 'string' && candidate.reasoning_content) {
+													aggregatedReasoning = candidate.reasoning_content as string;
+												}
+
 												const delta: { content?: string; reasoning_content?: string } = {};
-												if (text) {
-													delta.content = text;
-												}
-												if (candidate?.reasoning_content) {
-													delta.reasoning_content = candidate.reasoning_content;
+												if (reasoningToContent) {
+													if (aggregatedReasoning) {
+														delta.content = aggregatedReasoning;
+													} else if (text) {
+														delta.content = text;
+													}
+												} else {
+													if (text) {
+														delta.content = text;
+													}
+													if (aggregatedReasoning) {
+														delta.reasoning_content = aggregatedReasoning;
+													}
 												}
 
 												const sseChunk = {

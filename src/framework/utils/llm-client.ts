@@ -108,9 +108,9 @@ export class LlmClient {
 							try {
 								const json = JSON.parse(data);
 								const reasoning = json?.choices?.[0]?.delta?.reasoning_content;
-								if (typeof reasoning === 'string' && reasoning.length > 0) yield reasoning;
+								if (typeof reasoning === 'string' && reasoning.length > 0) yield JSON.stringify({ reasoning });
 								const content = json?.choices?.[0]?.delta?.content;
-								if (typeof content === 'string' && content.length > 0) yield content;
+								if (typeof content === 'string' && content.length > 0) yield JSON.stringify({ content });
 							} catch {}
 						}
 					}
@@ -126,9 +126,9 @@ export class LlmClient {
 				try {
 					const json = JSON.parse(data);
 					const reasoning = json?.choices?.[0]?.delta?.reasoning_content;
-					if (typeof reasoning === 'string' && reasoning.length > 0) yield reasoning;
+					if (typeof reasoning === 'string' && reasoning.length > 0) yield JSON.stringify({ reasoning });
 					const content = json?.choices?.[0]?.delta?.content;
-					if (typeof content === 'string' && content.length > 0) yield content;
+					if (typeof content === 'string' && content.length > 0) yield JSON.stringify({ content });
 				} catch {}
 			}
 		}
