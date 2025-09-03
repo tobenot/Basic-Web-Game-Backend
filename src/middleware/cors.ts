@@ -59,14 +59,15 @@ export async function corsMiddleware(request: FastifyRequest, reply: FastifyRepl
 
 // 创建CORS插件配置
 export const corsPluginOptions = (() => {
-  const corsConfig = getCorsConfig();
-  return {
-    origin: corsConfig.origins,
-    methods: corsConfig.methods,
-    allowedHeaders: corsConfig.allowedHeaders,
-    credentials: corsConfig.credentials,
-    maxAge: corsConfig.maxAge,
-    preflightContinue: corsConfig.preflightContinue,
-    optionsSuccessStatus: corsConfig.optionsSuccessStatus
-  };
+	const corsConfig = getCorsConfig();
+	return {
+		origin: corsConfig.origins,
+		methods: corsConfig.methods,
+		allowedHeaders: corsConfig.allowedHeaders,
+		credentials: corsConfig.credentials,
+		maxAge: corsConfig.maxAge,
+		preflightContinue: false,
+		optionsSuccessStatus: 204,
+		hideOptionsRoute: false
+	};
 })();

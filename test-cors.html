@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>CORS测试页面</title>
+	<style>
+		body {
+			font-family: Arial, sans-serif;
+			max-width: 800px;
+			margin: 0 auto;
+			padding: 20px;
+			background-color: #f5f5f5;
+		}
+		.container {
+			background: white;
+			padding: 20px;
+			border-radius: 8px;
+			box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+		}
+		button {
+			background: #007bff;
+			color: white;
+			border: none;
+			padding: 10px 20px;
+			border-radius: 4px;
+			cursor: pointer;
+			margin: 5px;
+		}
+		button:hover {
+			background: #0056b3;
+		}
+		.result {
+			margin-top: 20px;
+			padding: 15px;
+			border-radius: 4px;
+			white-space: pre-wrap;
+			font-family: monospace;
+			font-size: 12px;
+		}
+		.success {
+			background: #d4edda;
+			border: 1px solid #c3e6cb;
+			color: #155724;
+		}
+		.error {
+			background: #f8d7da;
+			border: 1px solid #f5c6cb;
+			color: #721c24;
+		}
+		.info {
+			background: #d1ecf1;
+			border: 1px solid #bee5eb;
+			color: #0c5460;
+		}
+	</style>
+</head>
+<body>
+	<div class="container">
+		<h1>🔍 CORS配置测试页面</h1>
+		<p>当前页面运行在: <strong id="currentOrigin"></strong></p>
+		
+		<h2>测试选项</h2>
+		<div style="margin-bottom: 10px;">
+  <label for="featurePassword">Feature Password:</label>
+  <input type="text" id="featurePassword" placeholder="Enter password if needed" style="width: 200px; padding: 5px;">
+</div>
+		<button onclick="testOptions()">测试 OPTIONS 预检请求</button>
+		<button onclick="testPost()">测试 POST 请求</button>
+		<button onclick="testStream()">测试流式请求</button>
+		<button onclick="clearResults()">清除结果</button>
+		
+		<div id="results"></div>
+	</div>
+
+	<script>
+		const currentOrigin = window.location.origin;
+		document.getElementById('currentOrigin').textContent = currentOrigin;
+		
+		const backendUrl = 'http://localhost:3000';
+		
+		function addResult(type, title, content) {
+			const resultsDiv = document.getElementById('results');
+			const resultDiv = document.createElement('div');
+			resultDiv.className = `result ${type}`;
+			resultDiv.innerHTML = `<strong>${title}</strong>\n${content}`;
+			resultsDiv.appendChild(resultDiv);
+		}
+		
+		async function testOptions() {
+			addResult('info', '🔄 测试 OPTIONS 预检请求...', '');
+			
+			try {
+				const response = await fetch(`${backendUrl}/v1/chat/completions`, {
+					method: 'OPTIONS',
+					headers: {
+						'Origin': currentOrigin,
+						'Access-Control-Request-Method': 'POST',
+						'Access-Control-Request-Headers': 'Content-Type, Authorization'
+					}
+				});
+				
+				const headers = {};
+				response.headers.forEach((value, key) => {
+					headers[key] = value;
+				});
+				
+				addResult('success', '✅ OPTIONS 请求成功', 
+					`状态码: ${response.status}\n响应头:\n${JSON.stringify(headers, null, 2)}`);
+			} catch (error) {
+				addResult('error', '❌ OPTIONS 请求失败', error.toString());
+			}
+		}
+		
+		async function testPost() {
+			addResult('info', '🔄 测试 POST 请求...', '');
+			const password = document.getElementById('featurePassword').value;
+			
+			try {
+				const response = await fetch(`${backendUrl}/v1/chat/completions`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'Origin': currentOrigin,
+						'x-feature-password': password
+					},
+					body: JSON.stringify({
+						model: 'gpt-3.5-turbo',
+						messages: [
+							{ role: 'user', content: 'Hello, this is a CORS test!' }
+						],
+						stream: false
+					})
+				});
+				
+				const headers = {};
+				response.headers.forEach((value, key) => {
+					headers[key] = value;
+				});
+				
+				if (response.ok) {
+					const data = await response.text();
+					addResult('success', '✅ POST 请求成功', 
+						`状态码: ${response.status}\n响应头:\n${JSON.stringify(headers, null, 2)}\n响应体: ${data}`);
+				} else {
+					addResult('error', '❌ POST 请求失败', 
+						`状态码: ${response.status}\n响应头:\n${JSON.stringify(headers, null, 2)}`);
+				}
+			} catch (error) {
+				addResult('error', '❌ POST 请求失败', error.toString());
+			}
+		}
+		
+		async function testStream() {
+			addResult('info', '🔄 测试流式请求...', '');
+			const password = document.getElementById('featurePassword').value;
+			
+			try {
+				const response = await fetch(`${backendUrl}/v1/chat/completions`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'Origin': currentOrigin,
+						'x-feature-password': password
+					},
+					body: JSON.stringify({
+						model: 'gpt-3.5-turbo',
+						messages: [
+							{ role: 'user', content: 'Hello, this is a streaming CORS test!' }
+						],
+						stream: true
+					})
+				});
+				
+				const headers = {};
+				response.headers.forEach((value, key) => {
+					headers[key] = value;
+				});
+				
+				if (response.ok) {
+					addResult('success', '✅ 流式请求成功', 
+						`状态码: ${response.status}\n响应头:\n${JSON.stringify(headers, null, 2)}`);
+					
+					const reader = response.body.getReader();
+					const decoder = new TextDecoder();
+					let streamData = '';
+					
+					while (true) {
+						const { done, value } = await reader.read();
+						if (done) break;
+						
+						const chunk = decoder.decode(value, { stream: true });
+						streamData += chunk;
+						
+						if (streamData.includes('[DONE]')) {
+							break;
+						}
+					}
+					
+					addResult('success', '📡 流式数据接收完成', 
+						`接收到的数据:\n${streamData.substring(0, 500)}${streamData.length > 500 ? '...' : ''}`);
+				} else {
+					addResult('error', '❌ 流式请求失败', 
+						`状态码: ${response.status}\n响应头:\n${JSON.stringify(headers, null, 2)}`);
+				}
+			} catch (error) {
+				addResult('error', '❌ 流式请求失败', error.toString());
+			}
+		}
+		
+		function clearResults() {
+			document.getElementById('results').innerHTML = '';
+		}
+	</script>
+</body>
+</html>

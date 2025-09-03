@@ -4,6 +4,7 @@ import { GeminiClient } from '../utils/gemini-client';
 import { isAIAuthRequired } from '../../config/auth';
 import { createAuthContext } from '../../middleware/auth';
 import { featurePasswordAuth } from '../../middleware/feature-passwords';
+import { getCorsConfig, isOriginAllowed } from '../../config/cors';
 
 const writeAndDrain = (reply: FastifyReply, data: string): Promise<void> => {
 	return new Promise((resolve) => {
@@ -51,18 +52,23 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 	const isDeepseek = /^deepseek(?:[-_]|$)/i.test(body.model);
 	const modelType = isGemini ? 'gemini' : isDeepseek ? 'deepseek' : 'unknown';
 
+	// CORS headers for streaming responses must be handled manually,
+	// because we are writing directly to the raw response stream.
+	const setManualCorsHeaders = () => {
+		const corsConfig = getCorsConfig();
+		const origin = request.headers.origin;
+		if (origin && isOriginAllowed(origin, corsConfig)) {
+			reply.raw.setHeader('Access-Control-Allow-Origin', origin);
+			reply.raw.setHeader('Access-Control-Allow-Credentials', corsConfig.credentials.toString());
+		}
+	};
 	if (isGemini) {
 		const gemini = new GeminiClient();
 		if (body.stream) {
 			reply.raw.setHeader('Content-Type', 'text/event-stream');
 			reply.raw.setHeader('Cache-Control', 'no-cache');
 			reply.raw.setHeader('Connection', 'keep-alive');
-			const origin = request.headers.origin;
-			if (origin) {
-				reply.raw.setHeader('Access-Control-Allow-Origin', origin);
-				reply.raw.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-				reply.raw.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-api-key, x-goog-api-key');
-			}
+			setManualCorsHeaders();
 
 			const abortController = new AbortController();
 			const onClose = () => { abortController.abort(); };
@@ -219,15 +225,7 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 		reply.raw.setHeader('Content-Type', 'text/event-stream');
 		reply.raw.setHeader('Cache-Control', 'no-cache');
 		reply.raw.setHeader('Connection', 'keep-alive');
-		// Manually set CORS headers for streaming responses
-		const origin = request.headers.origin;
-		if (origin) {
-			// In a real app, you should validate the origin against a whitelist.
-			// For development, we can reflect the origin.
-			reply.raw.setHeader('Access-Control-Allow-Origin', origin);
-			reply.raw.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-			reply.raw.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-api-key, x-goog-api-key');
-		}
+		setManualCorsHeaders();
 
 		const abortController = new AbortController();
 		const onClose = () => { abortController.abort(); };
