@@ -64,8 +64,15 @@ server {
 
         # 为WebSocket或SSE等长连接技术提供支持
         proxy_http_version 1.1;
+        # 以下两行为WebSocket协议升级所需
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
+        
+        # --- 流式传输(SSE)专用配置 ---
+        # 关闭代理缓冲，确保数据实时发送给客户端，对大模型流式响应至关重要
+        proxy_buffering off;
+        # 增加读取超时，防止长连接在传输过程中被中断
+        proxy_read_timeout 24h;
     }
 }
 ```
@@ -188,8 +195,15 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
 
         proxy_http_version 1.1;
+        # 以下两行为WebSocket协议升级所需
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
+
+        # --- 流式传输(SSE)专用配置 ---
+        # 关闭代理缓冲，确保数据实时发送给客户端，对大模型流式响应至关重要
+        proxy_buffering off;
+        # 增加读取超时，防止长连接在传输过程中被中断
+        proxy_read_timeout 24h;
     }
 
     # Certbot自动添加的SSL配置
