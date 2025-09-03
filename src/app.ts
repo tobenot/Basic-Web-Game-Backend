@@ -37,17 +37,24 @@ export async function buildServer(): Promise<FastifyInstance> {
 	console.log('🔧 允许的源:', corsConfig.origins);
 	console.log('🔐 鉴权配置:', JSON.stringify(authConfig, null, 2));
 
-	if (corsConfig.enabled) {
-		server.register(cors, corsPluginOptions);
-		console.log('✅ CORS插件已启用');
-		console.log('✅ CORS插件配置:', JSON.stringify(corsPluginOptions, null, 2));
+	// 只有当环境变量 CORS_PROVIDER 不等于 'NGINX' 时，才启用应用的CORS处理。
+	// 这意味着在 Vercel 和本地开发时，它会默认启用。
+	if (process.env.CORS_PROVIDER !== 'NGINX') {
+		console.log('CORS is handled by the application.'); // 加一条日志方便调试
+		if (corsConfig.enabled) {
+			server.register(cors, corsPluginOptions);
+			console.log('✅ CORS插件已启用');
+			console.log('✅ CORS插件配置:', JSON.stringify(corsPluginOptions, null, 2));
 
-		if (process.env.NODE_ENV !== 'production') {
-			console.log('🧪 运行CORS配置测试...');
-			testCors();
+			if (process.env.NODE_ENV !== 'production') {
+				console.log('🧪 运行CORS配置测试...');
+				testCors();
+			}
+		} else {
+			console.log('⚠️ CORS by application is disabled by config/env.');
 		}
 	} else {
-		console.log('⚠️ CORS插件已禁用');
+		console.log('CORS is handled by NGINX, application CORS is disabled.'); // 加上日志
 	}
 
 	server.addHook('onRequest', async (request, _reply) => {

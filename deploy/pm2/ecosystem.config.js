@@ -13,6 +13,7 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         DOTENV_CONFIG_PATH: './.env.publish',
+        CORS_PROVIDER: 'NGINX', // 告知应用，CORS由Nginx处理
       },
       out_file: `/var/log/${pkg.name.replace(/^@.*\//, '')}/out.log`,
       error_file: `/var/log/${pkg.name.replace(/^@.*\//, '')}/err.log`,
