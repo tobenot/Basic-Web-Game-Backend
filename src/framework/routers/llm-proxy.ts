@@ -52,12 +52,10 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 	const isDeepseek = /^deepseek(?:[-_]|$)/i.test(body.model);
 	const modelType = isGemini ? 'gemini' : isDeepseek ? 'deepseek' : 'unknown';
 
-	// CORS headers for streaming responses must be handled manually,
-	// because we are writing directly to the raw response stream.
 	const setManualCorsHeaders = () => {
 		const corsConfig = getCorsConfig();
 		const origin = request.headers.origin;
-		if (origin && isOriginAllowed(origin, corsConfig)) {
+		if (corsConfig.enabled && origin && isOriginAllowed(origin, corsConfig)) {
 			reply.raw.setHeader('Access-Control-Allow-Origin', origin);
 			reply.raw.setHeader('Access-Control-Allow-Credentials', corsConfig.credentials.toString());
 		}

@@ -15,6 +15,7 @@ export interface CorsConfig {
 // 获取CORS配置
 export function getCorsConfig(): CorsConfig {
   const isProduction = config.isProduction;
+  const corsProvider = (process.env.CORS_PROVIDER || '').trim();
   
   // 基础允许的源
   const baseOrigins = [
@@ -40,8 +41,10 @@ export function getCorsConfig(): CorsConfig {
     ? baseOrigins.filter(origin => origin.startsWith('https://'))
     : baseOrigins;
 
+  const enabled = (process.env.CORS_ENABLED !== 'false') && !(isProduction && corsProvider === 'NGINX');
+
   return {
-    enabled: process.env.CORS_ENABLED !== 'false',
+    enabled,
     origins,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: [

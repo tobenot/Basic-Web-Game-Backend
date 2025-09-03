@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { isFeaturePasswordRequired, hasPermission } from '../config/feature-passwords';
+import { getCorsConfig, isOriginAllowed } from '../config/cors';
 
 type PermissionProvider = (request: FastifyRequest) => string | null;
 
@@ -36,10 +37,11 @@ export function featurePasswordAuth(permissionProvider: PermissionProvider) {
       const body = request.body as any;
       if (body?.stream) {
         // We are directly manipulating the stream, so we need to set CORS headers manually for the error response.
+        const cors = getCorsConfig();
         const origin = request.headers.origin;
-        if (origin) {
-            reply.raw.setHeader('Access-Control-Allow-Origin', origin);
-            reply.raw.setHeader('Access-Control-Allow-Credentials', 'true');
+        if (cors.enabled && origin && isOriginAllowed(origin, cors)) {
+          reply.raw.setHeader('Access-Control-Allow-Origin', origin);
+          reply.raw.setHeader('Access-Control-Allow-Credentials', cors.credentials.toString());
         }
         reply.raw.setHeader('Content-Type', 'text/event-stream');
         reply.raw.setHeader('Cache-Control', 'no-cache');
