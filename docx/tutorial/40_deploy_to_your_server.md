@@ -2,6 +2,15 @@
 
 本文档已更新，原有的“手动拉代码 + PM2 + Nginx”步骤部分过时。现推荐使用项目内置的“一键部署包”，更像整合包：本地打包，服务器解压后点击 `deploy.bat`（Windows）或执行 `deploy.sh`（Linux）即可完成停服→装依赖（可选）→迁移（可选）→启动。
 
+#### ⚠️ 重要安全提醒
+
+**部署包包含敏感信息，请勿分享给他人！**
+
+- 部署脚本会自动检测并加载 `.env.publish` 文件中的环境变量
+- 包含数据库连接字符串、API 密钥等敏感配置
+- 部署完成后请妥善保管，避免泄露
+- 详细的环境变量配置说明请参考：[43. 环境变量配置：.env.publish 详解](./43_env_publish.md)
+
 #### 本地打包
 
 ```bash
@@ -18,6 +27,7 @@ npm run pack:all        # 两个平台都打
 
 1) 解压 zip 到目标目录
 2) 在包目录准备 `.env.publish`（存在则优先）或 `.env`
+   - **重要**：部署脚本会自动检测并加载 `.env.publish` 文件
    - 最小示例：
    ```env
    NODE_ENV=production
@@ -30,6 +40,7 @@ npm run pack:all        # 两个平台都打
    MIGRATE_ON_DEPLOY=1
    ```
    - 若用 SQLite：先 `mkdir data`
+   - **详细配置说明**：参考 [43. 环境变量配置：.env.publish 详解](./43_env_publish.md)
 3) 双击 `deploy.bat`
 4) 防火墙放行新端口（示例 8088）
 
@@ -39,6 +50,8 @@ npm run pack:all        # 两个平台都打
 
 1) 解压 zip 到目标目录
 2) 准备 `.env.publish`（同上）并（如需）`mkdir -p data`
+   - **重要**：部署脚本会自动检测并加载 `.env.publish` 文件
+   - **详细配置说明**：参考 [43. 环境变量配置：.env.publish 详解](./43_env_publish.md)
 3) 执行：
 ```bash
 bash deploy.sh
@@ -50,6 +63,7 @@ bash deploy.sh
 
 - 改端口：在 `.env.publish` 设置 `PORT=你想要的端口`，同时放行防火墙；若有反代，更新转发目标端口。
 - 跨域：如有额外前端域名，设置 `CORS_ADDITIONAL_ORIGINS=https://a.com,https://b.com`。
+- **环境变量配置**：所有配置都在 `.env.publish` 中，参考 [43. 环境变量配置：.env.publish 详解](./43_env_publish.md)
 
 #### HTTPS/证书（简述）
 
