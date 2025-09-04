@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini API 前端示例</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+        
+        .api-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border-left: 4px solid #4A90E2;
+        }
+        
+        .api-info h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .api-info code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        select, textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+            font-family: inherit;
+        }
+        
+        select:focus, textarea:focus {
+            outline: none;
+            border-color: #4A90E2;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+        }
+        
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #4A90E2, #357ABD);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4);
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            transform: none;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4A90E2;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .response {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border-left: 4px solid #28a745;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .error {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+            color: #721c24;
+        }
+        
+        .streaming {
+            background: #d1ecf1;
+            border-left-color: #17a2b8;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .controls .btn {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+        }
+        
+        .btn-secondary:hover {
+            box-shadow: 0 5px 15px rgba(108, 117, 125, 0.4);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+        
+        .btn-danger:hover {
+            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+        }
+        
+        .status {
+            text-align: center;
+            margin: 10px 0;
+            font-weight: 600;
+        }
+        
+        .status.success {
+            color: #28a745;
+        }
+        
+        .status.error {
+            color: #dc3545;
+        }
+        
+        .status.info {
+            color: #17a2b8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🤖</div>
+            <h1>Gemini API 前端示例</h1>
+            <p class="subtitle">使用部署在 tyo.tobenot.top 的 Gemini API</p>
+        </div>
+        
+        <div class="api-info">
+            <h3>API 端点信息</h3>
+            <p><strong>基础 URL:</strong> <code>https://tyo.tobenot.top</code></p>
+            <p><strong>聊天完成端点:</strong> <code>/v1/chat/completions</code></p>
+            <p><strong>支持的模型:</strong> <code>gemini-1.5-pro</code>, <code>gemini-1.5-flash</code>, <code>gemini-1.0-pro</code></p>
+            <p><strong>认证:</strong> 需要设置 <code>GEMINI_API_KEY</code> 环境变量</p>
+        </div>
+        
+        <form id="chatForm">
+            <div class="form-group">
+                <label for="model">选择模型:</label>
+                <select id="model" required>
+                    <option value="gemini-1.5-pro">gemini-1.5-pro (推荐)</option>
+                    <option value="gemini-1.5-flash">gemini-1.5-flash (快速)</option>
+                    <option value="gemini-1.0-pro">gemini-1.0-pro</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="message">输入消息:</label>
+                <textarea id="message" placeholder="请输入你想要询问的内容..." required></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="temperature">温度 (0.0 - 1.0):</label>
+                <select id="temperature">
+                    <option value="0.1">0.1 (保守)</option>
+                    <option value="0.3">0.3 (平衡)</option>
+                    <option value="0.7" selected>0.7 (创意)</option>
+                    <option value="1.0">1.0 (非常创意)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="maxTokens">最大令牌数:</label>
+                <select id="maxTokens">
+                    <option value="1000">1000</option>
+                    <option value="2000" selected>2000</option>
+                    <option value="4000">4000</option>
+                    <option value="8000">8000</option>
+                </select>
+            </div>
+            
+            <div class="controls">
+                <button type="submit" class="btn" id="submitBtn">发送请求</button>
+                <button type="button" class="btn btn-secondary" id="streamBtn">流式请求</button>
+                <button type="button" class="btn btn-danger" id="clearBtn">清空</button>
+            </div>
+        </form>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>正在处理请求...</p>
+        </div>
+        
+        <div class="status" id="status"></div>
+        
+        <div class="response" id="response" style="display: none;"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://tyo.tobenot.top';
+        let abortController = null;
+
+        // 获取DOM元素
+        const form = document.getElementById('chatForm');
+        const modelSelect = document.getElementById('model');
+        const messageTextarea = document.getElementById('message');
+        const temperatureSelect = document.getElementById('temperature');
+        const maxTokensSelect = document.getElementById('maxTokens');
+        const submitBtn = document.getElementById('submitBtn');
+        const streamBtn = document.getElementById('streamBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const loading = document.getElementById('loading');
+        const status = document.getElementById('status');
+        const response = document.getElementById('response');
+
+        // 显示状态
+        function showStatus(message, type = 'info') {
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+
+        // 显示响应
+        function showResponse(content, type = 'success') {
+            response.textContent = content;
+            response.className = `response ${type}`;
+            response.style.display = 'block';
+        }
+
+        // 隐藏响应
+        function hideResponse() {
+            response.style.display = 'none';
+        }
+
+        // 显示/隐藏加载状态
+        function setLoading(loading) {
+            document.getElementById('loading').style.display = loading ? 'block' : 'none';
+            submitBtn.disabled = loading;
+            streamBtn.disabled = loading;
+        }
+
+        // 普通请求
+        async function sendRequest() {
+            const model = modelSelect.value;
+            const message = messageTextarea.value.trim();
+            const temperature = parseFloat(temperatureSelect.value);
+            const maxTokens = parseInt(maxTokensSelect.value);
+
+            if (!message) {
+                showStatus('请输入消息', 'error');
+                return;
+            }
+
+            setLoading(true);
+            hideResponse();
+            showStatus('正在发送请求...', 'info');
+
+            try {
+                const response = await fetch(`${API_BASE}/v1/chat/completions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: [
+                            {
+                                role: 'user',
+                                content: message
+                            }
+                        ],
+                        temperature: temperature,
+                        max_tokens: maxTokens,
+                        stream: false
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.choices && data.choices.length > 0) {
+                    const content = data.choices[0].message.content;
+                    showResponse(content);
+                    showStatus('请求成功完成', 'success');
+                } else {
+                    throw new Error('响应中没有找到内容');
+                }
+            } catch (error) {
+                console.error('请求错误:', error);
+                showResponse(`错误: ${error.message}`, 'error');
+                showStatus('请求失败', 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // 流式请求
+        async function sendStreamRequest() {
+            const model = modelSelect.value;
+            const message = messageTextarea.value.trim();
+            const temperature = parseFloat(temperatureSelect.value);
+            const maxTokens = parseInt(maxTokensSelect.value);
+
+            if (!message) {
+                showStatus('请输入消息', 'error');
+                return;
+            }
+
+            setLoading(true);
+            hideResponse();
+            showStatus('正在发送流式请求...', 'info');
+
+            // 创建 AbortController
+            abortController = new AbortController();
+
+            try {
+                const response = await fetch(`${API_BASE}/v1/chat/completions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: [
+                            {
+                                role: 'user',
+                                content: message
+                            }
+                        ],
+                        temperature: temperature,
+                        max_tokens: maxTokens,
+                        stream: true
+                    }),
+                    signal: abortController.signal
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+
+                if (!response.body) {
+                    throw new Error('响应体为空');
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullContent = '';
+                
+                showResponse('', 'streaming');
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data === '[DONE]') {
+                                showStatus('流式请求完成', 'success');
+                                return;
+                            }
+                            
+                            try {
+                                const json = JSON.parse(data);
+                                const content = json.choices?.[0]?.delta?.content;
+                                if (content) {
+                                    fullContent += content;
+                                    showResponse(fullContent, 'streaming');
+                                }
+                            } catch (e) {
+                                // 忽略解析错误
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    showStatus('请求已取消', 'info');
+                } else {
+                    console.error('流式请求错误:', error);
+                    showResponse(`错误: ${error.message}`, 'error');
+                    showStatus('流式请求失败', 'error');
+                }
+            } finally {
+                setLoading(false);
+                abortController = null;
+            }
+        }
+
+        // 取消请求
+        function cancelRequest() {
+            if (abortController) {
+                abortController.abort();
+                abortController = null;
+            }
+        }
+
+        // 清空内容
+        function clearContent() {
+            messageTextarea.value = '';
+            hideResponse();
+            showStatus('内容已清空', 'info');
+        }
+
+        // 事件监听器
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            sendRequest();
+        });
+
+        streamBtn.addEventListener('click', sendStreamRequest);
+        clearBtn.addEventListener('click', clearContent);
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            showStatus('准备就绪，请输入消息', 'info');
+            
+            // 设置默认消息
+            messageTextarea.value = '你好！请介绍一下你自己，并告诉我你能做什么。';
+        });
+
+        // 页面卸载时取消请求
+        window.addEventListener('beforeunload', () => {
+            cancelRequest();
+        });
+    </script>
+</body>
+</html>
