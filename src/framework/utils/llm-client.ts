@@ -32,19 +32,70 @@ export type ChatCompletionResponse = {
 	usage?: unknown;
 };
 
+type LlmProvider = {
+	name: string;
+	apiKey: string | undefined;
+	baseUrl: string;
+	headers: Record<string, string | undefined>;
+};
+
 export class LlmClient {
 	private apiKey: string;
 	private baseUrl: string;
+	private headers: Record<string, string>;
 
 	constructor(options?: { apiKey?: string; baseUrl?: string }) {
-		const resolvedApiKey = options?.apiKey || process.env.OPENAI_API_KEY || process.env.DEEPSEEK_API_KEY || '';
-		let resolvedBase = options?.baseUrl || process.env.OPENAI_BASE_URL || process.env.DEEPSEEK_BASE_URL;
-		if (!resolvedBase) {
-			resolvedBase = !process.env.OPENAI_API_KEY && process.env.DEEPSEEK_API_KEY ? 'https://api.deepseek.com' : 'https://api.openai.com';
+		this.headers = { 'Content-Type': 'application/json' };
+
+		// Priority: Explicit options > Environment Variables
+		if (options?.apiKey) {
+			this.apiKey = options.apiKey;
+			// Default to OpenAI URL if baseUrl is not provided, maintaining compatibility
+			this.baseUrl = (options.baseUrl || 'https://api.openai.com').replace(/\/$/, '');
+			this.headers['Authorization'] = `Bearer ${this.apiKey}`;
+			return;
 		}
-		this.apiKey = resolvedApiKey;
-		this.baseUrl = resolvedBase.replace(/\/$/, '');
-		if (!this.apiKey) throw new Error('API key is not set. Set OPENAI_API_KEY or DEEPSEEK_API_KEY, or pass via constructor.');
+
+		// Environment-based provider configuration (Priority: OpenRouter > DeepSeek > OpenAI)
+		const providers: LlmProvider[] = [
+			{
+				name: 'OpenRouter',
+				apiKey: process.env.OPENROUTER_API_KEY,
+				baseUrl: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
+				headers: {
+					'HTTP-Referer': process.env.OPENROUTER_HTTP_REFERER,
+					'X-Title': process.env.OPENROUTER_X_TITLE,
+				},
+			},
+			{
+				name: 'DeepSeek',
+				apiKey: process.env.DEEPSEEK_API_KEY,
+				baseUrl: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com',
+				headers: {},
+			},
+			{
+				name: 'OpenAI',
+				apiKey: process.env.OPENAI_API_KEY,
+				baseUrl: process.env.OPENAI_BASE_URL || 'https://api.openai.com',
+				headers: {},
+			},
+		];
+
+		const activeProvider = providers.find(p => p.apiKey);
+
+		if (activeProvider) {
+			this.apiKey = activeProvider.apiKey!;
+			this.baseUrl = activeProvider.baseUrl.replace(/\/$/, '');
+			this.headers['Authorization'] = `Bearer ${this.apiKey}`;
+			for (const key in activeProvider.headers) {
+				const value = activeProvider.headers[key];
+				if (value) {
+					this.headers[key] = value;
+				}
+			}
+		} else {
+			throw new Error('API key not set. Please set OPENROUTER_API_KEY, DEEPSEEK_API_KEY, or OPENAI_API_KEY.');
+		}
 	}
 
 	private getChatCompletionsUrl() {
@@ -55,12 +106,12 @@ export class LlmClient {
 		const url = this.getChatCompletionsUrl();
 		const res = await fetch(url, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}` },
+			headers: this.headers,
 			body: JSON.stringify({ ...params, stream: false }),
 		});
 		if (!res.ok) {
 			const text = await res.text();
-			throw new Error(`OpenAI error ${res.status}: ${text}`);
+			throw new Error(`LLM provider error ${res.status}: ${text}`);
 		}
 		return (await res.json()) as ChatCompletionResponse;
 	}
@@ -69,7 +120,7 @@ export class LlmClient {
 		const url = this.getChatCompletionsUrl();
 		const res = await fetch(url, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}` },
+			headers: this.headers,
 			body: JSON.stringify({ ...params, stream: true }),
 			signal: abortSignal,
 		} as RequestInit);
@@ -80,13 +131,13 @@ export class LlmClient {
 		const url = this.getChatCompletionsUrl();
 		const res = await fetch(url, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}` },
+			headers: this.headers,
 			body: JSON.stringify({ ...params, stream: true }),
 			signal: abortSignal,
 		} as RequestInit);
 		if (!res.ok || !res.body) {
 			const text = await res.text().catch(() => '');
-			throw new Error(`OpenAI stream error ${res.status}: ${text}`);
+			throw new Error(`LLM provider stream error ${res.status}: ${text}`);
 		}
 		const decoder = new TextDecoder();
 		const reader = (res.body as ReadableStream<Uint8Array>).getReader();

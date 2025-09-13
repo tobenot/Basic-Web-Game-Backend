@@ -5,6 +5,10 @@ import { isAIAuthRequired } from '../../config/auth';
 import { createAuthContext } from '../../middleware/auth';
 import { featurePasswordAuth } from '../../middleware/feature-passwords';
 import { getCorsConfig, isOriginAllowed } from '../../config/cors';
+import { TRPCError } from '@trpc/server';
+import { Readable } from 'stream';
+import { z } from 'zod';
+import { router, publicProcedure } from '../../trpc';
 
 const writeAndDrain = (reply: FastifyReply, data: string): Promise<void> => {
 	return new Promise((resolve) => {
@@ -48,9 +52,8 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 		return reply.code(400).send({ error: 'Invalid request: model and messages are required.' });
 	}
 
-	const isGemini = /^gemini[-_]/i.test(body.model);
-	const isDeepseek = /^deepseek(?:[-_]|$)/i.test(body.model);
-	const modelType = isGemini ? 'gemini' : isDeepseek ? 'deepseek' : 'unknown';
+	const { provider, model } = getProviderAndModel(body.model);
+	body.model = model;
 
 	const setManualCorsHeaders = () => {
 		const corsConfig = getCorsConfig();
@@ -60,7 +63,7 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 			reply.raw.setHeader('Access-Control-Allow-Credentials', corsConfig.credentials.toString());
 		}
 	};
-	if (isGemini) {
+	if (provider === 'gemini') {
 		const gemini = new GeminiClient();
 		if (body.stream) {
 			reply.raw.setHeader('Content-Type', 'text/event-stream');
@@ -210,14 +213,7 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 		}
 	}
 
-	let upstream: LlmClient;
-	if (isDeepseek) {
-		const apiKey = process.env.DEEPSEEK_API_KEY || '';
-		const baseUrl = (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/$/, '');
-		upstream = new LlmClient({ apiKey, baseUrl });
-	} else {
-		upstream = new LlmClient();
-	}
+	const upstream = getLlmClient(provider);
 
 	if (body.stream) {
 		reply.raw.setHeader('Content-Type', 'text/event-stream');
@@ -238,7 +234,7 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 			} else {
 				const query = request.query as any;
 				const reasoningToContent = query?.reasoning_to_content === '1' || query?.reasoning_to_content === 'true';
-				if (!reasoningToContent || !isDeepseek) {
+				if (!reasoningToContent || provider !== 'deepseek') {
 					const reader = upstreamRes.body.getReader();
 					const decoder = new TextDecoder();
 					while (true) {
@@ -315,14 +311,104 @@ const getLlmPermission = (request: FastifyRequest): string | null => {
 	if (!body?.model) {
 		return 'llm-all'; // Fallback if model is not present
 	}
-	if (/^gemini[-_]/i.test(body.model)) {
+	const { provider } = getProviderAndModel(body.model);
+	if (provider === 'gemini') {
 		return 'llm-gemini';
 	}
-	if (/^deepseek(?:[-_]|$)/i.test(body.model)) {
+	if (provider === 'deepseek') {
 		return 'llm-deepseek';
 	}
 	return 'llm-all'; // Default for other models
 };
+
+type Provider = 'openai' | 'deepseek' | 'openrouter' | 'gemini' | 'default';
+
+function getProviderAndModel(originalModel: string): { provider: Provider; model: string } {
+	if (originalModel.startsWith('gemini-')) {
+		return { provider: 'gemini', model: originalModel };
+	}
+	if (originalModel.startsWith('deepseek/')) {
+		return { provider: 'deepseek', model: originalModel.replace('deepseek/', '') };
+	}
+	if (originalModel.startsWith('openai/')) {
+		return { provider: 'openai', model: originalModel.replace('openai/', '') };
+	}
+	if (originalModel.startsWith('openrouter/')) {
+		return { provider: 'openrouter', model: originalModel.replace('openrouter/', '') };
+	}
+	if (originalModel.startsWith('deepseek-')) {
+		return { provider: 'deepseek', model: originalModel };
+	}
+	return { provider: 'default', model: originalModel };
+}
+
+function getLlmClient(provider: Provider): LlmClient {
+	switch (provider) {
+		case 'openai':
+			if (!process.env.OPENAI_API_KEY) throw new TRPCError({ code: 'BAD_REQUEST', message: 'OPENAI_API_KEY is not set on the server.' });
+			return new LlmClient({ apiKey: process.env.OPENAI_API_KEY, baseUrl: process.env.OPENAI_BASE_URL });
+		case 'deepseek':
+			if (!process.env.DEEPSEEK_API_KEY) throw new TRPCError({ code: 'BAD_REQUEST', message: 'DEEPSEEK_API_KEY is not set on the server.' });
+			return new LlmClient({ apiKey: process.env.DEEPSEEK_API_KEY, baseUrl: process.env.DEEPSEEK_BASE_URL });
+		case 'openrouter':
+			if (!process.env.OPENROUTER_API_KEY) throw new TRPCError({ code: 'BAD_REQUEST', message: 'OPENROUTER_API_KEY is not set on the server.' });
+			// The LlmClient constructor will automatically pick up other OPENROUTER_* env vars
+			return new LlmClient({ apiKey: process.env.OPENROUTER_API_KEY, baseUrl: process.env.OPENROUTER_BASE_URL });
+		case 'default':
+		default:
+			// Let the LlmClient constructor figure out the default provider based on env var priority
+			return new LlmClient();
+	}
+}
+
+export const llmProxyRouter = router({
+	chatCompletions: publicProcedure.input(z.any()).mutation(async ({ input, ctx }: { input: any; ctx: any }) => {
+		const { req, res } = ctx;
+		const body = input as any;
+		const originalModel = body.model;
+
+		const { provider, model } = getProviderAndModel(originalModel);
+		body.model = model;
+
+		if (provider === 'gemini') {
+			if (body.stream) {
+				throw new TRPCError({ code: 'BAD_REQUEST', message: 'Gemini streaming is not supported yet.' });
+			}
+			const gemini = new GeminiClient();
+			const result = await gemini.createChatCompletion(body);
+			return result;
+		}
+
+		const llmClient = getLlmClient(provider);
+
+		if (!body.stream) {
+			try {
+				const result = await llmClient.createChatCompletion({ ...body, stream: false });
+				return result;
+			} catch (error: any) {
+				console.error('LLM proxy error:', error);
+				throw new TRPCError({
+					code: 'INTERNAL_SERVER_ERROR',
+					message: error.message,
+				});
+			}
+		} else {
+			try {
+				const stream = await llmClient.fetchChatCompletionStream(body, req.signal);
+				if (!stream.body) {
+					throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'No response body from LLM provider.' });
+				}
+				const readable = Readable.fromWeb(stream.body as any);
+				readable.pipe(res);
+			} catch (error: any) {
+				console.error('LLM stream proxy error:', error);
+				if (!res.headersSent) {
+					res.status(500).send({ error: error.message });
+				}
+			}
+		}
+	}),
+});
 
 
 export const llmProxyRoutes: FastifyPluginCallback = (server: FastifyInstance, _opts, done) => {
