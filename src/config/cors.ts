@@ -28,6 +28,8 @@ export function getCorsConfig(): CorsConfig {
     'http://127.0.0.1:5174',
     'https://tobenot.top',
     'https://bwb.tobenot.top',
+    'https://html-classic.itch.zone',
+    'https://itch.zone',
   ];
 
   // 从环境变量添加额外的CORS域名
