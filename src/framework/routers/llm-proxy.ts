@@ -346,14 +346,13 @@ function getLlmClient(provider: Provider): LlmClient {
 	switch (provider) {
 		case 'openai':
 			if (!process.env.OPENAI_API_KEY) throw new TRPCError({ code: 'BAD_REQUEST', message: 'OPENAI_API_KEY is not set on the server.' });
-			return new LlmClient({ apiKey: process.env.OPENAI_API_KEY, baseUrl: process.env.OPENAI_BASE_URL });
+			return new LlmClient({ apiKey: process.env.OPENAI_API_KEY, baseUrl: process.env.OPENAI_BASE_URL || 'https://api.openai.com' });
 		case 'deepseek':
 			if (!process.env.DEEPSEEK_API_KEY) throw new TRPCError({ code: 'BAD_REQUEST', message: 'DEEPSEEK_API_KEY is not set on the server.' });
-			return new LlmClient({ apiKey: process.env.DEEPSEEK_API_KEY, baseUrl: process.env.DEEPSEEK_BASE_URL });
+			return new LlmClient({ apiKey: process.env.DEEPSEEK_API_KEY, baseUrl: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com' });
 		case 'openrouter':
 			if (!process.env.OPENROUTER_API_KEY) throw new TRPCError({ code: 'BAD_REQUEST', message: 'OPENROUTER_API_KEY is not set on the server.' });
-			// The LlmClient constructor will automatically pick up other OPENROUTER_* env vars
-			return new LlmClient({ apiKey: process.env.OPENROUTER_API_KEY, baseUrl: process.env.OPENROUTER_BASE_URL });
+			return new LlmClient({ apiKey: process.env.OPENROUTER_API_KEY, baseUrl: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1' });
 		case 'default':
 		default:
 			// Let the LlmClient constructor figure out the default provider based on env var priority
