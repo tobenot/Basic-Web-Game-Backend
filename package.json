@@ -36,6 +36,7 @@
     "pack:linux:server": "node scripts/pack.js linux server",
     "pack:linux:modules": "node scripts/pack.js linux modules",
     "pack:all": "node scripts/pack.js all full",
+    "publish": "npm publish --access public --registry=https://registry.npmjs.org/",
     "db:up": "docker compose -f docker-compose.postgres.yml up -d",
     "db:down": "docker compose -f docker-compose.postgres.yml down",
     "env:pg:local": "export DATABASE_URL=postgres://dev:dev@localhost:5432/app?sslmode=disable",
