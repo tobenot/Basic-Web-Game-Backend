@@ -4,31 +4,33 @@ import { getAuthConfig } from '../config/auth';
 
 export interface AuthContext {
 	user: { userId: string } | null;
+	// 携带原始请求,供 tRPC procedure 按 IP 限流
+	req: FastifyRequest;
 }
 
 export async function createAuthContext(req: FastifyRequest): Promise<AuthContext> {
 	const config = getAuthConfig();
-	
+
 	if (!config.enabled) {
-		return { user: null };
+		return { user: null, req };
 	}
-	
+
 	const authHeader = req.headers.authorization;
 	if (!authHeader) {
-		return { user: null };
+		return { user: null, req };
 	}
-	
+
 	try {
 		const token = authHeader.split(' ')[1];
 		if (!token) {
-			return { user: null };
+			return { user: null, req };
 		}
-		
+
 		const user = jwt.verify(token, config.jwtSecret) as { userId: string };
-		return { user };
+		return { user, req };
 	} catch (error) {
 		console.warn('JWT验证失败:', error);
-		return { user: null };
+		return { user: null, req };
 	}
 }
 

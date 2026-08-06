@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { publicProcedure, router } from '../../trpc';
+import { publicProcedure, router, Context } from '../../trpc';
 import { prisma } from '../../db';
 import { Resend } from 'resend';
 import { randomBytes, createHash } from 'crypto';
@@ -8,11 +8,18 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { config } from '../../config';
 import { getAuthConfig } from '../../config/auth';
+import { createRateLimiter } from '../utils/rate-limit';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const emailTemplatePath = path.join(__dirname, '../templates/magic-link-email.html');
 const emailTemplate = fs.readFileSync(emailTemplatePath, 'utf-8');
+
+// 登录流程限流器
+const loginLinkEmailLimiter = createRateLimiter(5, 60 * 60 * 1000); // 每邮箱每小时 5 封登录邮件
+const loginLinkIpLimiter = createRateLimiter(10, 60 * 60 * 1000); // 每 IP 每小时 10 次
+const otpVerifyIpLimiter = createRateLimiter(10, 15 * 60 * 1000); // OTP 验证每 IP 每 15 分钟 10 次
+const magicVerifyIpLimiter = createRateLimiter(10, 15 * 60 * 1000); // Magic link 验证每 IP 每 15 分钟 10 次
 
 function buildMagicLink(token: string): string {
 	const frontendUrl = config.getFrontendUrl();
@@ -40,8 +47,17 @@ export const authRouter = router({
 
 	requestLoginLink: publicProcedure
 		.input(z.object({ email: z.string().email() }))
-		.mutation(async ({ input }: { input: { email: string } }) => {
+		.mutation(async ({ input, ctx }: { input: { email: string }; ctx: Context }) => {
 			const { email } = input;
+			const ip = ctx.req.ip;
+
+			// 邮箱级限流 + IP 级限流,任一超限即拒绝
+			if (!loginLinkEmailLimiter(email.toLowerCase())) {
+				throw new Error('请求过于频繁，请稍后再试。');
+			}
+			if (!loginLinkIpLimiter(ip)) {
+				throw new Error('请求过于频繁，请稍后再试。');
+			}
 			const user = await prisma.user.upsert({
 				where: { email },
 				update: {},
@@ -111,7 +127,12 @@ export const authRouter = router({
 
 	verifyMagicToken: publicProcedure
 		.input(z.object({ token: z.string() }))
-		.query(async ({ input }: { input: { token: string } }) => {
+		.query(async ({ input, ctx }: { input: { token: string }; ctx: Context }) => {
+			// IP 级限流,超限即拒绝
+			if (!magicVerifyIpLimiter(ctx.req.ip)) {
+				throw new Error('请求过于频繁，请稍后再试。');
+			}
+
 			const hashedToken = createHash('sha256').update(input.token).digest('hex');
 
 			// Prefer new LoginChallenge flow
@@ -161,8 +182,12 @@ export const authRouter = router({
 
 	verifyEmailCode: publicProcedure
 		.input(z.object({ challengeId: z.string(), code: z.string().min(4).max(12) }))
-		.mutation(async ({ input }: { input: { challengeId: string; code: string } }) => {
+		.mutation(async ({ input, ctx }: { input: { challengeId: string; code: string }; ctx: Context }) => {
 			const { challengeId, code } = input;
+			// IP 级限流,超限即拒绝
+			if (!otpVerifyIpLimiter(ctx.req.ip)) {
+				throw new Error('请求过于频繁，请稍后再试。');
+			}
 			const challenge = await prisma.loginChallenge.findUnique({ where: { id: challengeId } });
 			if (!challenge) {
 				throw new Error('验证码无效或已过期。');

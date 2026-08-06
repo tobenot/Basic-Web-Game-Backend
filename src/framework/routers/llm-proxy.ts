@@ -9,6 +9,16 @@ import { TRPCError } from '@trpc/server';
 import { Readable } from 'stream';
 import { z } from 'zod';
 import { router, publicProcedure } from '../../trpc';
+import { createRateLimiter } from '../utils/rate-limit';
+
+// ponytail: 单实例内存限流;按 IP 每 1 分钟 20 次,正常 demo 用户够用
+const llmIpLimiter = createRateLimiter(20, 60 * 1000);
+
+const llmRateLimit = (request: FastifyRequest, reply: FastifyReply) => {
+	if (!llmIpLimiter(request.ip)) {
+		return reply.code(429).send({ error: 'Too Many Requests', message: '请求过于频繁，请稍后再试。' });
+	}
+};
 
 const writeAndDrain = (reply: FastifyReply, data: string): Promise<void> => {
 	return new Promise((resolve) => {
@@ -363,6 +373,9 @@ function getLlmClient(provider: Provider): LlmClient {
 export const llmProxyRouter = router({
 	chatCompletions: publicProcedure.input(z.any()).mutation(async ({ input, ctx }: { input: any; ctx: any }) => {
 		const { req, res } = ctx;
+		if (!llmIpLimiter((ctx.req as any).ip)) {
+			throw new TRPCError({ code: 'TOO_MANY_REQUESTS', message: '请求过于频繁，请稍后再试。' });
+		}
 		const body = input as any;
 		const originalModel = body.model;
 
@@ -411,8 +424,8 @@ export const llmProxyRouter = router({
 
 
 export const llmProxyRoutes: FastifyPluginCallback = (server: FastifyInstance, _opts, done) => {
-	server.post('/v1/chat/completions', { preHandler: [featurePasswordAuth(getLlmPermission)] }, chatCompletionsHandler);
-	server.post('/api/v1/chat/completions', { preHandler: [featurePasswordAuth(getLlmPermission)] }, chatCompletionsHandler);
+	server.post('/v1/chat/completions', { preHandler: [featurePasswordAuth(getLlmPermission), llmRateLimit] }, chatCompletionsHandler);
+	server.post('/api/v1/chat/completions', { preHandler: [featurePasswordAuth(getLlmPermission), llmRateLimit] }, chatCompletionsHandler);
 	done();
 };
 

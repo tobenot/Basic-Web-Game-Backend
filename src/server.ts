@@ -4,6 +4,12 @@ export type { AppRouter } from './app';
 import { setupGlobalHttpProxyFromEnv } from './framework/utils/http-proxy';
 
 const start = async () => {
+  // 生产环境必须设置 JWT_SECRET,否则拒绝启动,防止落到公开的硬编码默认值
+  if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+    console.error('❌ FATAL: production 环境必须设置 JWT_SECRET,拒绝启动。');
+    process.exit(1);
+  }
+
   console.log('🔍 Starting server...');
   console.log('🔍 环境变量检查:');
   console.log('  - NODE_ENV:', process.env.NODE_ENV);

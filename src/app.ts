@@ -1,4 +1,5 @@
 import { fastify, FastifyInstance } from 'fastify';
+import '@fastify/static'; // 加载类型声明（FastifyReply.sendFile 的模块增强）
 import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
 import cors from '@fastify/cors';
 import * as jwt from 'jsonwebtoken';
@@ -14,7 +15,7 @@ import { getCorsConfig } from './config/cors';
 import { getAuthConfig } from './config/auth';
 import { testCors } from './framework/utils/cors-test';
 
-const SENSITIVE_HEADERS = new Set(['authorization', 'cookie', 'set-cookie', 'x-api-key', 'proxy-authorization']);
+const SENSITIVE_HEADERS = new Set(['authorization', 'cookie', 'set-cookie', 'x-api-key', 'proxy-authorization', 'x-feature-password', 'x-goog-api-key']);
 const sanitizeHeaders = (headers: Record<string, any>) => {
 	const out: Record<string, any> = {};
 	for (const [key, value] of Object.entries(headers)) {
@@ -22,6 +23,8 @@ const sanitizeHeaders = (headers: Record<string, any>) => {
 	}
 	return out;
 };
+// 去掉 query string，防止魔法链接的一次性 token 落日志
+const redactUrl = (u: string) => u.split('?')[0];
 
 export type AppRouter = ReturnType<typeof createAppRouter>;
 
@@ -37,7 +40,8 @@ function createAppRouter() {
 
 export async function buildServer(): Promise<FastifyInstance> {
 	const appRouter = createAppRouter();
-	const server = fastify({ maxParamLength: 5000 });
+	// 生产在 nginx 反代后面，需要信任 X-Forwarded-For 才能拿到真实客户端 IP 供限流使用
+	const server = fastify({ maxParamLength: 5000, trustProxy: true });
 
 	const corsConfig = getCorsConfig();
 	const authConfig = getAuthConfig();
@@ -68,15 +72,22 @@ export async function buildServer(): Promise<FastifyInstance> {
 	}
 
 	server.addHook('onRequest', async (request, _reply) => {
-		console.log(`📥 收到请求: ${request.method} ${request.url}`);
+		console.log(`📥 收到请求: ${request.method} ${redactUrl(request.url)}`);
 		console.log(`📥 Origin: ${request.headers.origin}`);
 		console.log(`📥 User-Agent: ${request.headers['user-agent']}`);
 		console.log(`📥 请求头:`, JSON.stringify(sanitizeHeaders(request.headers), null, 2));
 	});
 
 	server.addHook('onResponse', async (request, reply) => {
-		console.log(`📤 响应: ${request.method} ${request.url} -> ${reply.statusCode}`);
+		console.log(`📤 响应: ${request.method} ${redactUrl(request.url)} -> ${reply.statusCode}`);
 		console.log(`📤 响应头:`, JSON.stringify(sanitizeHeaders(reply.getHeaders()), null, 2));
+	});
+
+	// 基础安全响应头
+	server.addHook('onSend', async (_request, reply) => {
+		reply.header('X-Content-Type-Options', 'nosniff');
+		reply.header('X-Frame-Options', 'DENY');
+		reply.header('Referrer-Policy', 'no-referrer');
 	});
 
 	server.register(fastifyTRPCPlugin, {
@@ -104,7 +115,13 @@ export async function buildServer(): Promise<FastifyInstance> {
 	server.register(require('@fastify/static'), {
 		root: process.cwd(),
 		prefix: '/',
+		wildcard: false,
+		dotfiles: 'ignore',
 	});
+	// 只暴露白名单内的静态文件，防止 .env / .env.publish 等敏感文件被 GET 拉走
+	for (const f of ['test.html', 'cors-test.html', 'test-cors.html', 'announcement.txt']) {
+		server.get(`/${f}`, (_req, reply) => reply.sendFile(f));
+	}
 
 	server.get('/health', async (_request, reply) => {
 		return reply.code(200).send({ status: 'ok' });

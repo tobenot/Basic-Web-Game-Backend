@@ -1,7 +1,8 @@
 import { initTRPC, TRPCError } from '@trpc/server';
+import type { FastifyRequest } from 'fastify';
 import { isTRPCAuthRequired } from './config/auth';
 
-export type Context = { user: { userId: string } | null };
+export type Context = { user: { userId: string } | null; req: FastifyRequest };
 
 const t = initTRPC.context<Context>().create();
 
