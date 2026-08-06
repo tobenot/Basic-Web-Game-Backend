@@ -79,7 +79,9 @@ curl -X POST http://localhost:3000/api/trpc/auth.requestLoginLink \
   -d '{"email": "user@example.com"}'
 
 # 验证魔法链接获取session token
-curl "http://localhost:3000/api/trpc/auth.verifyMagicToken?input={\"token\":\"your-magic-token\"}"
+curl -X POST http://localhost:3000/api/trpc/auth.verifyMagicToken \
+  -H "Content-Type: application/json" \
+  -d '{"token": "your-magic-token"}'
 ```
 
 ### 2. 使用AI服务 (需要鉴权时)

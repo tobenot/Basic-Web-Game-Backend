@@ -331,10 +331,13 @@
 
         async function verifyToken(token) {
             try {
-                const inputData = { token: token };
-                const url = `${API_BASE}/auth.verifyMagicToken?input=${encodeURIComponent(JSON.stringify(inputData))}`;
-                
-                const response = await fetch(url);
+                const response = await fetch(`${API_BASE}/auth.verifyMagicToken`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ token })
+                });
                 const result = await response.json();
                 
                 if (result.result?.data?.sessionToken) {

@@ -127,7 +127,8 @@ export const authRouter = router({
 
 	verifyMagicToken: publicProcedure
 		.input(z.object({ token: z.string() }))
-		.query(async ({ input, ctx }: { input: { token: string }; ctx: Context }) => {
+		// mutation:token 走请求体而非 URL,避免落入访问日志 / Referer / 浏览器历史
+		.mutation(async ({ input, ctx }: { input: { token: string }; ctx: Context }) => {
 			// IP 级限流,超限即拒绝
 			if (!magicVerifyIpLimiter(ctx.req.ip)) {
 				throw new Error('请求过于频繁，请稍后再试。');

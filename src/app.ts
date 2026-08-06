@@ -1,5 +1,5 @@
 import { fastify, FastifyInstance } from 'fastify';
-import '@fastify/static'; // 加载类型声明（FastifyReply.sendFile 的模块增强）
+import * as fs from 'fs';
 import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
 import cors from '@fastify/cors';
 import * as jwt from 'jsonwebtoken';
@@ -11,6 +11,7 @@ import { echoRouter } from './framework/routers/echo';
 import { router } from './trpc';
 import { join } from 'path';
 import { corsPluginOptions, createAuthContext } from './middleware';
+import { config } from './config';
 import { getCorsConfig } from './config/cors';
 import { getAuthConfig } from './config/auth';
 import { testCors } from './framework/utils/cors-test';
@@ -33,7 +34,8 @@ function createAppRouter() {
 		auth: authRouter,
 		user: userRouter,
 		announcement: announcementRouter,
-		corsDebug: corsDebugRouter,
+		// corsDebug 仅开发环境注册,避免生产环境泄露 CORS 白名单等内部配置
+		...(config.isProduction ? {} : { corsDebug: corsDebugRouter }),
 		echo: echoRouter,
 	});
 }
@@ -112,15 +114,19 @@ export async function buildServer(): Promise<FastifyInstance> {
 
 	server.register(require('./framework/routers/llm-proxy').llmProxyRoutes);
 
-	server.register(require('@fastify/static'), {
-		root: process.cwd(),
-		prefix: '/',
-		wildcard: false,
-		dotfiles: 'ignore',
-	});
-	// 只暴露白名单内的静态文件，防止 .env / .env.publish 等敏感文件被 GET 拉走
-	for (const f of ['test.html', 'cors-test.html', 'test-cors.html', 'announcement.txt']) {
-		server.get(`/${f}`, (_req, reply) => reply.sendFile(f));
+	// 只手动服务白名单内的演示文件,不再整目录静态托管,杜绝 .env / src / prisma 等被 GET 拉走
+	const publicFiles: Record<string, string> = {
+		'/test.html': 'text/html',
+		'/cors-test.html': 'text/html',
+		'/test-cors.html': 'text/html',
+		'/announcement.txt': 'text/plain',
+	};
+	for (const [route, contentType] of Object.entries(publicFiles)) {
+		server.get(route, async (_req, reply) => {
+			const filePath = join(process.cwd(), route.slice(1));
+			if (!fs.existsSync(filePath)) return reply.code(404).send('Not Found');
+			return reply.type(contentType).send(fs.createReadStream(filePath));
+		});
 	}
 
 	server.get('/health', async (_request, reply) => {

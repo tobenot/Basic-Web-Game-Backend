@@ -131,7 +131,7 @@ GET /health   → { "status": "ok" }
 | ---- | ---- | ---- | ---- |
 | `auth.healthCheck` | query | — | `{ status, timestamp, message }` |
 | `auth.requestLoginLink` | mutation | `{ email }` | `{ success, challengeId }` |
-| `auth.verifyMagicToken` | query | `{ token }` | `{ sessionToken }` |
+| `auth.verifyMagicToken` | mutation | `{ token }` | `{ sessionToken }` |
 | `auth.verifyEmailCode` | mutation | `{ challengeId, code }` | `{ sessionToken }` |
 | `user.getMe` | query · 🔒 | — | `{ id, email, createdAt }` |
 | `announcement.getAnnouncement` | query | — | `{ announcement }` |
