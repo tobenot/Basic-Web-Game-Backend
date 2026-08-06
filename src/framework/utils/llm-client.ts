@@ -32,12 +32,49 @@ export type ChatCompletionResponse = {
 	usage?: unknown;
 };
 
+// 超时:非流式=总时长(对齐平台时长上限),流式=空闲超时(不掐长对话)
+const TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS || 60_000);
+const IDLE_TIMEOUT_MS = Number(process.env.LLM_IDLE_TIMEOUT_MS || 60_000);
+
 type LlmProvider = {
 	name: string;
 	apiKey: string | undefined;
 	baseUrl: string;
 	headers: Record<string, string | undefined>;
 };
+
+// ponytail: 流式空闲超时保护。每收到一个 chunk 重置计时,静默超过 idleMs 则中止上游连接;
+// 上游断流/客户端断开时 reader.read() 报错,经 catch 结束流,进程不崩。
+function withIdleTimeout(body: ReadableStream<Uint8Array>, abort: AbortController, idleMs: number): ReadableStream<Uint8Array> {
+	let timer: NodeJS.Timeout;
+	const reset = () => {
+		clearTimeout(timer);
+		timer = setTimeout(() => abort.abort(), idleMs);
+	};
+	reset();
+	const reader = body.getReader();
+	return new ReadableStream<Uint8Array>({
+		async pull(controller) {
+			try {
+				const { done, value } = await reader.read();
+				if (done) {
+					clearTimeout(timer);
+					controller.close();
+					return;
+				}
+				reset();
+				controller.enqueue(value);
+			} catch (err) {
+				clearTimeout(timer);
+				controller.error(err);
+			}
+		},
+		cancel() {
+			clearTimeout(timer);
+			reader.cancel().catch(() => {});
+		},
+	});
+}
 
 export class LlmClient {
 	private apiKey: string;
@@ -108,6 +145,7 @@ export class LlmClient {
 			method: 'POST',
 			headers: this.headers,
 			body: JSON.stringify({ ...params, stream: false }),
+			signal: AbortSignal.timeout(TIMEOUT_MS),
 		});
 		if (!res.ok) {
 			const text = await res.text();
@@ -118,23 +156,27 @@ export class LlmClient {
 
 	async fetchChatCompletionStream(params: ChatCompletionParams, abortSignal?: AbortSignal) {
 		const url = this.getChatCompletionsUrl();
+		// 空闲超时信号 + 调用方(客户端断开)信号,合并成一个 abort 信号
+		const idleController = new AbortController();
+		const fetchSignal = abortSignal ? AbortSignal.any([abortSignal, idleController.signal]) : idleController.signal;
 		const res = await fetch(url, {
 			method: 'POST',
 			headers: this.headers,
 			body: JSON.stringify({ ...params, stream: true }),
-			signal: abortSignal,
+			signal: fetchSignal,
 		} as RequestInit);
+		if (res.ok && res.body) {
+			// 包一层空闲超时,拿到上游响应后再决定是否写头,4xx 不会挂起
+			return new Response(withIdleTimeout(res.body, idleController, IDLE_TIMEOUT_MS), {
+				status: res.status,
+				headers: res.headers,
+			});
+		}
 		return res;
 	}
 
 	async *streamChatCompletion(params: ChatCompletionParams, abortSignal?: AbortSignal): AsyncGenerator<string, void, unknown> {
-		const url = this.getChatCompletionsUrl();
-		const res = await fetch(url, {
-			method: 'POST',
-			headers: this.headers,
-			body: JSON.stringify({ ...params, stream: true }),
-			signal: abortSignal,
-		} as RequestInit);
+		const res = await this.fetchChatCompletionStream(params, abortSignal);
 		if (!res.ok || !res.body) {
 			const text = await res.text().catch(() => '');
 			throw new Error(`LLM provider stream error ${res.status}: ${text}`);

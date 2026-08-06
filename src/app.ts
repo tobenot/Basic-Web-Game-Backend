@@ -14,6 +14,15 @@ import { getCorsConfig } from './config/cors';
 import { getAuthConfig } from './config/auth';
 import { testCors } from './framework/utils/cors-test';
 
+const SENSITIVE_HEADERS = new Set(['authorization', 'cookie', 'set-cookie', 'x-api-key', 'proxy-authorization']);
+const sanitizeHeaders = (headers: Record<string, any>) => {
+	const out: Record<string, any> = {};
+	for (const [key, value] of Object.entries(headers)) {
+		out[key] = SENSITIVE_HEADERS.has(key.toLowerCase()) ? '[REDACTED]' : value;
+	}
+	return out;
+};
+
 export type AppRouter = ReturnType<typeof createAppRouter>;
 
 function createAppRouter() {
@@ -62,12 +71,12 @@ export async function buildServer(): Promise<FastifyInstance> {
 		console.log(`📥 收到请求: ${request.method} ${request.url}`);
 		console.log(`📥 Origin: ${request.headers.origin}`);
 		console.log(`📥 User-Agent: ${request.headers['user-agent']}`);
-		console.log(`📥 请求头:`, JSON.stringify(request.headers, null, 2));
+		console.log(`📥 请求头:`, JSON.stringify(sanitizeHeaders(request.headers), null, 2));
 	});
 
 	server.addHook('onResponse', async (request, reply) => {
 		console.log(`📤 响应: ${request.method} ${request.url} -> ${reply.statusCode}`);
-		console.log(`📤 响应头:`, JSON.stringify(reply.getHeaders(), null, 2));
+		console.log(`📤 响应头:`, JSON.stringify(sanitizeHeaders(reply.getHeaders()), null, 2));
 	});
 
 	server.register(fastifyTRPCPlugin, {
