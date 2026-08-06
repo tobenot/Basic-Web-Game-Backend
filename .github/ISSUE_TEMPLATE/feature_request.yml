@@ -1,0 +1,42 @@
+name: ✨ Feature request
+description: Suggest an idea for this project
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting! Please fill in as much as you can. / 感谢建议！请尽量填写完整。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / 要解决的问题
+      description: What can't you do today? / 目前无法做到什么？
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution / 建议方案
+      description: How should it behave? / 期望的行为是什么？
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives / 备选方案
+      description: Workarounds you've tried / 尝试过的变通办法
+      required: false
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope / 范围
+      options:
+        - label: This affects the API / auth behavior / 涉及 API / 认证行为
+        - label: This affects the LLM proxy / 涉及 LLM 代理
+        - label: This affects deployment / CORS / 涉及部署 / CORS
+        - label: I'd like to implement it myself / 我想自己实现

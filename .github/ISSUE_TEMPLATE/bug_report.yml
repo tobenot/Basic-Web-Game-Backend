@@ -1,0 +1,63 @@
+name: 🐛 Bug report
+description: Report a bug to help us improve
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please fill in as much as you can. / 感谢反馈！请尽量填写完整。
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist / 检查清单
+      options:
+        - label: I searched for existing issues and this is not a duplicate / 我已搜索现有 issue，确认没有重复
+          required: true
+        - label: I have a minimal reproduction / 我有最小复现
+          required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Version / 版本
+      description: Package or commit hash / 包版本或提交哈希
+      placeholder: "1.1.4 / main@abc1234"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description / 问题描述
+      description: What happened and what did you expect? / 实际表现与预期行为
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps / 复现步骤
+      description: Endpoint, request body, env values that matter / 相关接口、请求体、关键环境变量
+      render: bash
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / 日志
+      description: Relevant server console output / 相关服务器日志输出
+      render: bash
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment / 环境
+      options:
+        - Local dev / 本地开发
+        - Vercel / 线上
+        - Nginx / 自托管
+    validations:
+      required: true
