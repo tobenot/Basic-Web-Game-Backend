@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { publicProcedure, router, Context } from '../../trpc';
 import { prisma } from '../../db';
 import { Resend } from 'resend';
@@ -53,10 +54,10 @@ export const authRouter = router({
 
 			// 邮箱级限流 + IP 级限流,任一超限即拒绝
 			if (!loginLinkEmailLimiter(email.toLowerCase())) {
-				throw new Error('请求过于频繁，请稍后再试。');
+				throw new TRPCError({ code: 'TOO_MANY_REQUESTS', message: '请求过于频繁，请稍后再试。' });
 			}
 			if (!loginLinkIpLimiter(ip)) {
-				throw new Error('请求过于频繁，请稍后再试。');
+				throw new TRPCError({ code: 'TOO_MANY_REQUESTS', message: '请求过于频繁，请稍后再试。' });
 			}
 			const user = await prisma.user.upsert({
 				where: { email },
@@ -131,7 +132,7 @@ export const authRouter = router({
 		.mutation(async ({ input, ctx }: { input: { token: string }; ctx: Context }) => {
 			// IP 级限流,超限即拒绝
 			if (!magicVerifyIpLimiter(ctx.req.ip)) {
-				throw new Error('请求过于频繁，请稍后再试。');
+				throw new TRPCError({ code: 'TOO_MANY_REQUESTS', message: '请求过于频繁，请稍后再试。' });
 			}
 
 			const hashedToken = createHash('sha256').update(input.token).digest('hex');
@@ -187,7 +188,7 @@ export const authRouter = router({
 			const { challengeId, code } = input;
 			// IP 级限流,超限即拒绝
 			if (!otpVerifyIpLimiter(ctx.req.ip)) {
-				throw new Error('请求过于频繁，请稍后再试。');
+				throw new TRPCError({ code: 'TOO_MANY_REQUESTS', message: '请求过于频繁，请稍后再试。' });
 			}
 			const challenge = await prisma.loginChallenge.findUnique({ where: { id: challengeId } });
 			if (!challenge) {
