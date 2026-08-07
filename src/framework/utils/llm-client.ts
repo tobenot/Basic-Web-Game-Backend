@@ -33,8 +33,8 @@ export type ChatCompletionResponse = {
 };
 
 // 超时:非流式=总时长(对齐平台时长上限),流式=空闲超时(不掐长对话)
-const TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS || 60_000);
-const IDLE_TIMEOUT_MS = Number(process.env.LLM_IDLE_TIMEOUT_MS || 60_000);
+export const TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS || 60_000);
+export const IDLE_TIMEOUT_MS = Number(process.env.LLM_IDLE_TIMEOUT_MS || 60_000);
 
 type LlmProvider = {
 	name: string;
@@ -45,7 +45,7 @@ type LlmProvider = {
 
 // ponytail: 流式空闲超时保护。每收到一个 chunk 重置计时,静默超过 idleMs 则中止上游连接;
 // 上游断流/客户端断开时 reader.read() 报错,经 catch 结束流,进程不崩。
-function withIdleTimeout(body: ReadableStream<Uint8Array>, abort: AbortController, idleMs: number): ReadableStream<Uint8Array> {
+export function withIdleTimeout(body: ReadableStream<Uint8Array>, abort: AbortController, idleMs: number): ReadableStream<Uint8Array> {
 	let timer: NodeJS.Timeout;
 	const reset = () => {
 		clearTimeout(timer);

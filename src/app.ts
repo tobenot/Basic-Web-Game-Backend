@@ -52,7 +52,8 @@ export async function buildServer(): Promise<FastifyInstance> {
 
 	console.log('🔧 CORS配置:', JSON.stringify(corsConfig, null, 2));
 	console.log('🔧 允许的源:', corsConfig.origins);
-	console.log('🔐 鉴权配置:', JSON.stringify(authConfig, null, 2));
+	// 启动日志只打是否已设置,不打 JWT_SECRET 明文,防止签名密钥落日志
+	console.log('🔐 鉴权配置:', JSON.stringify({ ...authConfig, jwtSecret: authConfig.jwtSecret ? '[REDACTED]' : '[NOT SET]' }, null, 2));
 
 	// 现在 getCorsConfig() 已经考虑了 CORS_PROVIDER，所以这里直接检查 enabled
 	if (corsConfig.enabled) {

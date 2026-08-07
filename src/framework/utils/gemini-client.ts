@@ -1,4 +1,4 @@
-import { ChatCompletionParams, ChatCompletionResponse } from './llm-client';
+import { ChatCompletionParams, ChatCompletionResponse, withIdleTimeout, TIMEOUT_MS, IDLE_TIMEOUT_MS } from './llm-client';
 
 type GeminiPart = { text: string };
 type GeminiContent = { role: 'user' | 'model'; parts: GeminiPart[] };
@@ -59,6 +59,7 @@ export class GeminiClient {
 				'x-goog-api-key': this.apiKey,
 			},
 			body: JSON.stringify(payload),
+			signal: AbortSignal.timeout(TIMEOUT_MS), // 与 LlmClient 对齐,防上游卡死挂起请求
 		});
 		if (!res.ok) {
 			const text = await res.text();
@@ -131,6 +132,10 @@ export class GeminiClient {
 			payload.generationConfig = generationConfig;
 		}
 
+		// 空闲超时控制器 + 调用方(客户端断开)信号,合并成一个 abort 信号
+		const idleController = new AbortController();
+		const fetchSignal = abortSignal ? AbortSignal.any([abortSignal, idleController.signal]) : idleController.signal;
+
 		const res = await fetch(url, {
 			method: 'POST',
 			headers: {
@@ -138,8 +143,15 @@ export class GeminiClient {
 				'x-goog-api-key': this.apiKey,
 			},
 			body: JSON.stringify(payload),
-			signal: abortSignal,
+			signal: fetchSignal,
 		} as RequestInit);
+		if (res.ok && res.body) {
+			// 空闲超时 + 客户端断开信号合并,与 LlmClient 流式一致,防上游断流挂起
+			return new Response(withIdleTimeout(res.body, idleController, IDLE_TIMEOUT_MS), {
+				status: res.status,
+				headers: res.headers,
+			});
+		}
 		return res;
 	}
 }

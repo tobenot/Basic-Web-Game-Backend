@@ -4,6 +4,12 @@ export function createRateLimiter(limit: number, windowMs: number): (key: string
 	const hits = new Map<string, number[]>();
 	return (key: string): boolean => {
 		const now = Date.now();
+		// Map 只增不减,攻击者轮换 key(IP)会撑爆内存 -> 超过阈值惰性扫一遍过期 key
+		if (hits.size > 10_000) {
+			for (const [k, arr] of hits) {
+				if (!arr.some((t) => now - t < windowMs)) hits.delete(k);
+			}
+		}
 		const arr = (hits.get(key) || []).filter((t) => now - t < windowMs);
 		if (arr.length >= limit) {
 			hits.set(key, arr);

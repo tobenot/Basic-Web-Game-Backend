@@ -4,10 +4,15 @@ export type { AppRouter } from './app';
 import { setupGlobalHttpProxyFromEnv } from './framework/utils/http-proxy';
 
 const start = async () => {
-  // 生产环境必须设置 JWT_SECRET,否则拒绝启动,防止落到公开的硬编码默认值
-  if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
-    console.error('❌ FATAL: production 环境必须设置 JWT_SECRET,拒绝启动。');
-    process.exit(1);
+  // 非开发环境必须设置非默认的 JWT_SECRET,否则拒绝启动。
+  // 用默认值 'your-secret-key' 签名 = 任何人都能伪造 JWT;
+  // 这里不看 NODE_ENV==='production',避免 NODE_ENV 漏设/误拼时静默落到默认密钥。
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret || jwtSecret === 'your-secret-key') {
+    if (process.env.NODE_ENV !== 'development') {
+      console.error('❌ FATAL: 非开发环境必须设置非默认的 JWT_SECRET,拒绝启动。');
+      process.exit(1);
+    }
   }
 
   console.log('🔍 Starting server...');

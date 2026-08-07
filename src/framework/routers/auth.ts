@@ -147,13 +147,13 @@ export const authRouter = router({
 
 			if (challenge) {
 				if (challenge.consumedAt) {
-					throw new Error('链接已被使用。');
+					throw new TRPCError({ code: 'UNAUTHORIZED', message: '链接已被使用。' });
 				}
 				// method-specific TTL check using createdAt + ttl
 				const createdAt = challenge.createdAt as unknown as Date;
 				const magicDeadline = new Date(createdAt.getTime() + config.authFlow.magicLinkTtlSec * 1000);
 				if (now > magicDeadline) {
-					throw new Error('链接无效或已过期。');
+					throw new TRPCError({ code: 'UNAUTHORIZED', message: '链接无效或已过期。' });
 				}
 
 				const sessionToken = jwt.sign(
@@ -171,7 +171,7 @@ export const authRouter = router({
 			// Legacy fallback to AuthToken
 			const authToken = await prisma.authToken.findUnique({ where: { token: hashedToken } });
 			if (!authToken || new Date() > authToken.expiresAt) {
-				throw new Error('链接无效或已过期。');
+				throw new TRPCError({ code: 'UNAUTHORIZED', message: '链接无效或已过期。' });
 			}
 			const sessionToken = jwt.sign(
 				{ userId: authToken.userId, amr: ['magic_link'] },
@@ -192,21 +192,21 @@ export const authRouter = router({
 			}
 			const challenge = await prisma.loginChallenge.findUnique({ where: { id: challengeId } });
 			if (!challenge) {
-				throw new Error('验证码无效或已过期。');
+				throw new TRPCError({ code: 'BAD_REQUEST', message: '验证码无效或已过期。' });
 			}
 			if (challenge.consumedAt) {
-				throw new Error('该登录请求已被使用。');
+				throw new TRPCError({ code: 'UNAUTHORIZED', message: '该登录请求已被使用。' });
 			}
 
 			const now = new Date();
 			const createdAt = challenge.createdAt as unknown as Date;
 			const otpDeadline = new Date(createdAt.getTime() + config.authFlow.otpTtlSec * 1000);
 			if (now > otpDeadline) {
-				throw new Error('验证码已过期。');
+				throw new TRPCError({ code: 'UNAUTHORIZED', message: '验证码已过期。' });
 			}
 
 			if ((challenge.codeAttempts || 0) >= config.authFlow.otpMaxAttempts) {
-				throw new Error('尝试次数过多，请重新请求验证码。');
+				throw new TRPCError({ code: 'TOO_MANY_REQUESTS', message: '尝试次数过多，请重新请求验证码。' });
 			}
 
 			const providedHash = createHash('sha256').update(code).digest('hex');
@@ -215,7 +215,7 @@ export const authRouter = router({
 					where: { id: challenge.id },
 					data: { codeAttempts: (challenge.codeAttempts || 0) + 1 },
 				});
-				throw new Error('验证码错误。');
+				throw new TRPCError({ code: 'UNAUTHORIZED', message: '验证码错误。' });
 			}
 
 			const authCfg = getAuthConfig();
@@ -237,9 +237,10 @@ export const authRouter = router({
 function generateNumericOtp(length: number): string {
 	const digits = '0123456789';
 	let otp = '';
-	const bytes = randomBytes(length);
-	for (let i = 0; i < length; i++) {
-		otp += digits[bytes[i] % 10];
+	// 拒绝采样:只取 byte<250(≤256 的最大 10 的倍数),消除 %10 取模偏置(0-5 概率偏高)
+	while (otp.length < length) {
+		const byte = randomBytes(1)[0];
+		if (byte < 250) otp += digits[byte % 10];
 	}
 	return otp;
 }
