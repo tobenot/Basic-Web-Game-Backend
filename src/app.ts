@@ -9,6 +9,7 @@ import { announcementRouter } from './framework/routers/announcement';
 import { corsDebugRouter } from './framework/routers/cors-debug';
 import { echoRouter } from './framework/routers/echo';
 import { redeemRouter } from './framework/routers/redeem';
+import { turnstileRouter } from './framework/routers/turnstile';
 import { router } from './trpc';
 import { join } from 'path';
 import { corsPluginOptions, createAuthContext } from './middleware';
@@ -40,6 +41,7 @@ function createAppRouter() {
 		...(config.isProduction ? {} : { corsDebug: corsDebugRouter }),
 		echo: echoRouter,
 		redeem: redeemRouter,
+		turnstile: turnstileRouter,
 	});
 }
 

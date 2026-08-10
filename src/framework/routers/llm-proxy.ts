@@ -8,6 +8,7 @@ import { getCorsConfig, isOriginAllowed } from '../../config/cors';
 import { getGameConfig, getDefaultGameId } from '../../config/games';
 import { getSessionId } from '../../middleware/anonymous-session';
 import { checkQuota, recordUsage, estimateTokensFromMessages } from '../../ai/quota';
+import { isSessionTurnstileVerified } from './turnstile';
 import { TRPCError } from '@trpc/server';
 import { createRateLimiter } from '../utils/rate-limit';
 
@@ -78,6 +79,10 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 			return reply.code(400).send({ error: 'Invalid request: model is required.' });
 		}
 		body.model = gameConfig.defaultModel;
+	}
+	// 人机验证:开启时未验证的会话先到 SDK 触发 Turnstile widget 拿 token
+	if (!isSessionTurnstileVerified(sessionId)) {
+		return reply.code(403).send({ error: 'turnstile_required', message: '需要完成人机验证。' });
 	}
 	const quota = await checkQuota(sessionId, gameId, gameConfig);
 	if (!quota.allowed) {
