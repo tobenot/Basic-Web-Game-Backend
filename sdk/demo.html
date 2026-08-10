@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AiGameSDK Demo</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+    #output { border: 1px solid #ccc; border-radius: 8px; padding: 12px; min-height: 200px; white-space: pre-wrap; margin-bottom: 12px; }
+    .row { display: flex; gap: 8px; margin-bottom: 8px; }
+    input { flex: 1; padding: 8px; }
+    button { padding: 8px 16px; }
+    .meta { color: #888; font-size: 12px; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <h1>AiGameSDK Demo</h1>
+  <div class="meta">
+    game_id: <input id="gameId" value="wenming" style="width:120px">
+    apiBase: <input id="apiBase" value="http://localhost:3000" style="width:220px">
+    turnstileSiteKey: <input id="siteKey" placeholder="留空则不启用" style="width:200px">
+  </div>
+  <div id="output">（对话输出会显示在这里）</div>
+  <div class="row">
+    <input id="message" placeholder="说点什么…" autocomplete="off">
+    <button id="sendBtn">发送</button>
+  </div>
+  <div class="row">
+    <input id="code" placeholder="兑换码" autocomplete="off">
+    <button id="redeemBtn">兑换</button>
+  </div>
+  <div id="status" class="meta"></div>
+
+  <script src="./ai-game-sdk.js"></script>
+  <script>
+    const output = document.getElementById('output');
+    const status = document.getElementById('status');
+    const sdk = () => AiGameSDK.init({
+      gameId: document.getElementById('gameId').value.trim() || 'wenming',
+      apiBase: document.getElementById('apiBase').value.trim() || 'http://localhost:3000',
+      turnstileSiteKey: document.getElementById('siteKey').value.trim() || null,
+    });
+
+    document.getElementById('sendBtn').onclick = async () => {
+      const message = document.getElementById('message').value.trim();
+      if (!message) return;
+      output.textContent = '';
+      status.textContent = '思考中…';
+      try {
+        await sdk().chat(
+          [{ role: 'user', content: message }],
+          {
+            onChunk: (chunk) => {
+              const delta = chunk?.choices?.[0]?.delta || {};
+              if (delta.reasoning_content) status.textContent = '思考中…';
+              if (delta.content) output.textContent += delta.content;
+            },
+          }
+        );
+        status.textContent = '完成 ✓';
+      } catch (e) {
+        status.textContent = '';
+        output.textContent = `⚠ ${e.degradedMessage || e.message}`;
+      }
+    };
+
+    document.getElementById('redeemBtn').onclick = async () => {
+      const code = document.getElementById('code').value.trim();
+      if (!code) return;
+      status.textContent = '兑换中…';
+      try {
+        const r = await sdk().redeem(code);
+        status.textContent = `兑换成功：+${r.addedTokens} tokens，余额 ${r.balance}`;
+        document.getElementById('code').value = '';
+      } catch (e) {
+        status.textContent = `兑换失败：${e.message}`;
+      }
+    };
+  </script>
+</body>
+</html>
