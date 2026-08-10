@@ -1,6 +1,7 @@
 import { buildServer } from './app';
 import { config } from './config';
 export type { AppRouter } from './app';
+export type { ChatCompletionRequest, ChatCompletionChunk, ChatCompletionResponse, ChatCompletionUsage, AiApiError } from './types/ai-contract';
 import { setupGlobalHttpProxyFromEnv } from './framework/utils/http-proxy';
 
 const start = async () => {
