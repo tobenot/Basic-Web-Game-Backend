@@ -15,7 +15,9 @@ import { createRateLimiter } from '../utils/rate-limit';
 // ponytail: 单实例内存限流;按 IP 每 1 分钟 20 次,正常 demo 用户够用
 const llmIpLimiter = createRateLimiter(20, 60 * 1000);
 
-const llmRateLimit = (request: FastifyRequest, reply: FastifyReply) => {
+// 必须是 async:Fastify 5 的 hook runner 只 await thenable;
+// 同步 preHandler 返回 undefined 不会触发 next,请求会永久挂起(既有 bug)。
+const llmRateLimit = async (request: FastifyRequest, reply: FastifyReply) => {
 	if (!llmIpLimiter(request.ip)) {
 		return reply.code(429).send({ error: 'Too Many Requests', message: '请求过于频繁，请稍后再试。' });
 	}

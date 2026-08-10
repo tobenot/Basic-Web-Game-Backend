@@ -31,9 +31,13 @@ async function main() {
       expiresAt: expireDays ? new Date(Date.now() + expireDays * 24 * 3600 * 1000) : null,
     });
   }
-  await prisma.redeemCode.createMany({ data: rows, skipDuplicates: true });
-  console.log(`✅ 生成 ${rows.length} 个兑换码 (gameId=${gameId}, tokenAmount=${tokenAmount})`);
-  for (const r of rows) console.log(r.code);
+  // SQLite 不支持 createMany skipDuplicates,先查重再插入
+  const existing = await prisma.redeemCode.findMany({ where: { code: { in: rows.map((r) => r.code) } }, select: { code: true } });
+  const existingCodes = new Set(existing.map((r) => r.code));
+  const fresh = rows.filter((r) => !existingCodes.has(r.code));
+  if (fresh.length > 0) await prisma.redeemCode.createMany({ data: fresh });
+  console.log(`✅ 生成 ${fresh.length} 个兑换码 (gameId=${gameId}, tokenAmount=${tokenAmount})`);
+  for (const r of fresh) console.log(r.code);
   await prisma.$disconnect();
 }
 
