@@ -8,6 +8,7 @@ import { userRouter } from './framework/routers/user';
 import { announcementRouter } from './framework/routers/announcement';
 import { corsDebugRouter } from './framework/routers/cors-debug';
 import { echoRouter } from './framework/routers/echo';
+import { redeemRouter } from './framework/routers/redeem';
 import { router } from './trpc';
 import { join } from 'path';
 import { corsPluginOptions, createAuthContext } from './middleware';
@@ -38,6 +39,7 @@ function createAppRouter() {
 		// corsDebug 仅开发环境注册,避免生产环境泄露 CORS 白名单等内部配置
 		...(config.isProduction ? {} : { corsDebug: corsDebugRouter }),
 		echo: echoRouter,
+		redeem: redeemRouter,
 	});
 }
 

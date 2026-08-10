@@ -97,6 +97,16 @@ export class GeminiClient {
 			created,
 			model: params.model,
 			choices,
+			// 用量:供套件服务扣减额度/预算
+			...(data?.usageMetadata
+				? {
+					usage: {
+						prompt_tokens: data.usageMetadata.promptTokenCount ?? 0,
+						completion_tokens: data.usageMetadata.candidatesTokenCount ?? 0,
+						total_tokens: data.usageMetadata.totalTokenCount ?? 0,
+					},
+				}
+				: {}),
 		};
 	}
 

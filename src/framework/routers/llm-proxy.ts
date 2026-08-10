@@ -5,6 +5,9 @@ import { isAIAuthRequired } from '../../config/auth';
 import { createAuthContext } from '../../middleware/auth';
 import { featurePasswordAuth } from '../../middleware/feature-passwords';
 import { getCorsConfig, isOriginAllowed } from '../../config/cors';
+import { getGameConfig, getDefaultGameId } from '../../config/games';
+import { getSessionId } from '../../middleware/anonymous-session';
+import { checkQuota, recordUsage, estimateTokensFromMessages } from '../../ai/quota';
 import { TRPCError } from '@trpc/server';
 import { createRateLimiter } from '../utils/rate-limit';
 
@@ -55,9 +58,40 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 		}
 	}
 	
-	if (!body || !Array.isArray(body.messages) || !body.model) {
-		return reply.code(400).send({ error: 'Invalid request: model and messages are required.' });
+	if (!body || !Array.isArray(body.messages) || body.messages.length === 0) {
+		return reply.code(400).send({ error: 'Invalid request: messages are required.' });
 	}
+
+	// —— 匿名会话 + 游戏配置 + 额度/预算检查 ——
+	const sessionId = getSessionId(request);
+	if (!sessionId) {
+		return reply.code(401).send({ error: 'missing_session', message: '缺少会话，请刷新页面后重试。' });
+	}
+	const gameId = (body as any).game_id || (request.query as any)?.game_id || getDefaultGameId();
+	const gameConfig = getGameConfig(gameId);
+	if (!gameConfig) {
+		return reply.code(400).send({ error: 'unknown_game', message: `未知的游戏 ID: ${gameId}` });
+	}
+	// model 可省略:按游戏配置的默认模型补全
+	if (!body.model) {
+		if (!gameConfig.defaultModel) {
+			return reply.code(400).send({ error: 'Invalid request: model is required.' });
+		}
+		body.model = gameConfig.defaultModel;
+	}
+	const quota = await checkQuota(sessionId, gameId, gameConfig);
+	if (!quota.allowed) {
+		const status = quota.code === 'budget_exhausted' ? 503 : 429;
+		return reply.code(status).send({ error: quota.code, message: quota.message, degradedMessage: gameConfig.degradedMessage });
+	}
+
+	// 成功路径累计 usage,统一在此记额度;流式拿不到 usage 时用估算兜底
+	let capturedTokens = 0;
+	let capturedContentChars = 0;
+	const recordAfterSuccess = async () => {
+		const tokens = capturedTokens || (estimateTokensFromMessages(body.messages) + Math.ceil(capturedContentChars / 4));
+		await recordUsage(sessionId, gameId, tokens);
+	};
 
 	const { provider, model } = getProviderAndModel(body.model);
 	body.model = model;
@@ -81,9 +115,11 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 			const abortController = new AbortController();
 			const onClose = () => { abortController.abort(); };
 			reply.raw.on('close', onClose);
+			let streamOk = false;
 
 			try {
 				const upstreamRes = await gemini.fetchChatCompletionStream(body, abortController.signal);
+				streamOk = upstreamRes.ok && !!upstreamRes.body;
 				if (!upstreamRes.ok || !upstreamRes.body) {
 					const text = await upstreamRes.text().catch(() => '');
 					reply.code(upstreamRes.status);
@@ -95,7 +131,7 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 					const decoder = new TextDecoder();
 					let messageId = `gen-${Date.now()}`;
 					let created = Math.floor(Date.now() / 1000);
-					
+
 					let buffer = '';
 					while (true) {
 						const { value, done } = await reader.read();
@@ -108,7 +144,7 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 						// It's also not NDJSON. It's a single JSON array.
 						// So we cannot simply parse line by line.
 						// A simple way to handle this is to find JSON objects using bracket matching.
-						
+
 						// This is a very basic parser. It assumes that the stream is a series of JSON objects.
 						// A more robust solution might be needed if the structure is more complex.
 						let lastPos = 0;
@@ -125,6 +161,10 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 										const jsonString = buffer.substring(i, j + 1);
 										try {
 											const geminiData = JSON.parse(jsonString);
+											// 用量:每个分片都可能有 usageMetadata,取最后一个
+											if (geminiData?.usageMetadata?.totalTokenCount) {
+												capturedTokens = geminiData.usageMetadata.totalTokenCount;
+											}
 											const candidates = geminiData?.candidates || [];
 											for (const candidate of candidates) {
 												// Split candidate parts into reasoning vs content
@@ -140,6 +180,7 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 														text += partText;
 													}
 												}
+												if (text) capturedContentChars += text.length;
 
 												// Also consider top-level thinking or candidate.reasoning_content when present
 												let aggregatedReasoning = '' as string;
@@ -206,12 +247,15 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 				} catch {}
 			} finally {
 				reply.raw.off('close', onClose);
+				if (streamOk) await recordAfterSuccess();
 				reply.raw.end();
 			}
 			return reply;
 		} else {
 			try {
 				const result = await gemini.createChatCompletion({ ...body, stream: false });
+				capturedTokens = (result as any)?.usage?.total_tokens ?? 0;
+				await recordAfterSuccess();
 				return reply.code(200).send(result);
 			} catch (err: any) {
 				const text = typeof err?.message === 'string' ? err.message : 'Upstream error';
@@ -232,8 +276,10 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 		const onClose = () => { abortController.abort(); };
 		reply.raw.on('close', onClose);
 
+		let streamOk = false;
 		try {
 			const upstreamRes = await upstream.fetchChatCompletionStream(body, abortController.signal);
+			streamOk = upstreamRes.ok && !!upstreamRes.body;
 			if (!upstreamRes.ok || !upstreamRes.body) {
 				const text = await upstreamRes.text().catch(() => '');
 				reply.code(upstreamRes.status);
@@ -241,7 +287,9 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 			} else {
 				const query = request.query as any;
 				const reasoningToContent = query?.reasoning_to_content === '1' || query?.reasoning_to_content === 'true';
-				if (!reasoningToContent || provider !== 'deepseek') {
+				// deepseek(primary 游戏供应商)逐行解析:提取 usage 记额度 + 按需合并推理;
+				// 其余供应商原样透传(SSE 已是 OpenAI 格式),usage 拿不到时用估算兜底。
+				if (provider !== 'deepseek') {
 					const reader = upstreamRes.body.getReader();
 					const decoder = new TextDecoder();
 					while (true) {
@@ -272,17 +320,18 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 									reply.raw.write('data: [DONE]\n\n');
 									continue;
 								}
-								try {
-									const json = JSON.parse(data);
-									const choice = json?.choices?.[0];
-									if (choice?.delta?.reasoning_content && !choice?.delta?.content) {
-										choice.delta.content = choice.delta.reasoning_content;
+								let parsed: any = null;
+								try { parsed = JSON.parse(data); } catch { parsed = null; }
+								if (parsed) {
+									if (parsed.usage?.total_tokens) capturedTokens = parsed.usage.total_tokens;
+									const delta = parsed.choices?.[0]?.delta;
+									if (typeof delta?.content === 'string') capturedContentChars += delta.content.length;
+									if (reasoningToContent && delta?.reasoning_content && !delta?.content) {
+										delta.content = delta.reasoning_content;
+										delete delta.reasoning_content;
 									}
-									if (choice?.delta?.reasoning_content) {
-										delete choice.delta.reasoning_content;
-									}
-									reply.raw.write(`data: ${JSON.stringify(json)}\n\n`);
-								} catch {
+									reply.raw.write(`data: ${JSON.stringify(parsed)}\n\n`);
+								} else {
 									reply.raw.write(`data: ${data}\n\n`);
 								}
 							} else {
@@ -290,6 +339,8 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 							}
 						}
 					}
+					// 冲刷尾部残留(upstream 末行可能不带换行)
+					if (buffer.length > 0) reply.raw.write(buffer);
 				}
 			}
 		} catch (err: any) {
@@ -299,6 +350,7 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 			} catch {}
 		} finally {
 			reply.raw.off('close', onClose);
+			if (streamOk) await recordAfterSuccess();
 			reply.raw.end();
 		}
 		return reply;
@@ -306,6 +358,8 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 
 	try {
 		const result = await upstream.createChatCompletion({ ...body, stream: false });
+		capturedTokens = (result as any)?.usage?.total_tokens ?? 0;
+		await recordAfterSuccess();
 		return reply.code(200).send(result);
 	} catch (err: any) {
 		const text = typeof err?.message === 'string' ? err.message : 'Upstream error';
