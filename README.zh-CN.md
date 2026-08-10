@@ -36,7 +36,8 @@
 - 🔐 **免密码登录**——一封邮件同时携带魔法链接与一次性验证码（OTP）。令牌在数据库中均以 SHA-256 哈希存储，带有效期、一次性标记与 OTP 尝试次数限制。
 - 🔑 **JWT 会话**——无状态会话，`amr` 声明记录登录方式（`magic_link` 或 `otp`）。
 - 🤖 **OpenAI 兼容 LLM 代理**——`POST /v1/chat/completions`，支持多供应商路由（Gemini、DeepSeek、OpenAI、OpenRouter）、SSE 流式输出、推理内容与正文内容分离。
-- 🛡 **功能密码（Feature Password）**——通过 `x-feature-password` 请求头，用共享密钥按供应商粒度开放 LLM 访问权限。
+- 🎮 **AI 游戏套件（匿名额度）**——多游戏配置（`game_id`）、匿名会话（HttpOnly cookie）、每会话每日免费额度、兑换码加量、全局每日预算硬顶熔断、Cloudflare Turnstile 人机验证、按游戏降级文案，配套单文件前端 SDK（`sdk/ai-game-sdk.js`）。
+- 🛡 **功能密码（Feature Password）**——通过 `x-feature-password` 请求头，用共享密钥按供应商粒度开放 LLM 访问权限（**开发期白名单，公测前应移除**）。
 - 🧱 **端到端类型安全**——tRPC + Zod 输入校验，从前端到后端全程类型一致。
 - 🗄 **Prisma ORM**——生产环境使用 PostgreSQL，本地开发使用 SQLite，带版本化迁移。
 - 🌐 **灵活的 CORS**——开发/生产域名白名单（含 itch.io 等网页游戏平台），可用环境变量配置，或交由 NGINX 处理。
@@ -106,8 +107,13 @@ npm run dev
 | `CORS_ADDITIONAL_ORIGINS` | 逗号分隔的额外允许来源 | — |
 | `CORS_PROVIDER` | 设为 `NGINX` 时由 NGINX 处理 CORS | — |
 | `OPENAI_API_KEY` / `DEEPSEEK_API_KEY` / `OPENROUTER_API_KEY` | 上游 LLM 密钥 | — |
-| `FEATURE_PASSWORD_ENABLED` | 是否启用功能密码门禁 | `false` |
+| `FEATURE_PASSWORD_ENABLED` | 是否启用功能密码门禁（开发期白名单，公测前应移除） | `false` |
 | `FEATURE_PASSWORDS` | `名称:作用域` 对，如 `admin-key:llm-all` | — |
+| `DEFAULT_GAME_ID` | 请求缺省 `game_id` 时的回退 | `wenming` |
+| `GAMES_CONFIG` | JSON 覆盖游戏配置（如 `{"newgame":{"dailyFreeTokens":30000}}`） | — |
+| `AI_DAILY_BUDGET_TOKENS` | 全局每日 token 预算硬顶（所有游戏合计，熔断用） | `500000` |
+| `TURNSTILE_ENABLED` / `TURNSTILE_SECRET_KEY` | 是否开启 Cloudflare Turnstile 人机验证 / 服务端密钥 | `false` / — |
+| `ANON_COOKIE_SAMESITE` | 匿名会话 cookie 的 SameSite（跨站 iframe 游戏需 `None`，同域部署用 `Lax`） | 生产 `None` / 开发 `Lax` |
 | `AUTH_MAGIC_TTL_SEC` / `AUTH_OTP_TTL_SEC` | 魔法链接 / 验证码有效期 | `900` / `600` |
 | `AUTH_OTP_LENGTH` / `AUTH_OTP_MAX_ATTEMPTS` | 验证码位数 / 最大尝试次数 | `6` / `5` |
 

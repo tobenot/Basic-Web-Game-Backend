@@ -36,7 +36,8 @@ A modern, type-safe backend for web games — authentication, an OpenAI-compatib
 - 🔐 **Passwordless authentication** — one email carries both a magic link and a one-time code (OTP). Tokens are stored hashed (SHA-256) with TTLs, consumption flags, and OTP attempt limiting.
 - 🔑 **JWT sessions** — stateless sessions; the `amr` claim records how the user signed in (`magic_link` vs `otp`).
 - 🤖 **OpenAI-compatible LLM proxy** — `POST /v1/chat/completions` with multi-provider routing (Gemini, DeepSeek, OpenAI, OpenRouter), SSE streaming, and separate reasoning/content deltas.
-- 🛡 **Feature passwords** — gate LLM access per provider behind shared keys via the `x-feature-password` header.
+- 🎮 **AI game suite (anonymous quota)** — multi-game config via `game_id`, anonymous sessions (HttpOnly cookie), per-session daily free quota, redeem codes, a global daily budget breaker, Cloudflare Turnstile, per-game degraded copy, plus a single-file frontend SDK (`sdk/ai-game-sdk.js`).
+- 🛡 **Feature passwords** — gate LLM access per provider behind shared keys via the `x-feature-password` header (**dev-only allow-list; remove before public launch**).
 - 🧱 **End-to-end type safety** — tRPC with Zod input validation from server to frontend.
 - 🗄 **Prisma ORM** — PostgreSQL in production, SQLite for local development, versioned migrations.
 - 🌐 **Flexible CORS** — allow-list of dev/prod origins (including itch.io for web games), configurable via env, or offloaded to NGINX.

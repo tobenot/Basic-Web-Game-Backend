@@ -11,6 +11,8 @@
 > 2026-08-07 安全加固后。代码和文档已改好，这里只列**需要你在服务器上做的事**。
 
 - [ ] **确认后端域名**：代码 / `.env.production` 默认 `https://bwb.tobenot.top`（`src/config.ts`），但**实际在跑的 Nginx server_name 可能与它不同**。以服务器上 Nginx 实际配置的域名为准，把 `Nginx/nginx.conf` 的 CORS map 那一行、以及 `/etc/bwb/bwb.env` 的 `BACKEND_PRODUCTION_URL` 统一成同一个域名。
+- [ ] **Nginx CORS 白名单加游戏前端域名**：新游戏页面所在域名（如 `<游戏域名>`）逐条加进 `Nginx/nginx.conf` 的 `map $http_origin $allow_origin`，并确认 `sites-available` 里 `add_header Access-Control-Allow-Origin` 用了 `$allow_origin`。跨站 iframe（itch.io）游戏若带 cookie 需浏览器支持第三方 cookie + `ANON_COOKIE_SAMESITE=None`。
+- [ ] **发布时跑迁移**：新增了 `QuotaUsage` / `SessionCredit` / `RedeemCode` 三张表，发布脚本设 `MIGRATE_ON_DEPLOY=1` 会自动 `prisma migrate deploy`。
 - [ ] **填 `/etc/bwb/bwb.env`**（完整清单见下节）。重点：`JWT_SECRET` 用强随机值且≠`your-secret-key`；`HOST=127.0.0.1`（**不要 0.0.0.0**，否则 3000 端口直连绕过 IP 限流）；`CORS_PROVIDER=NGINX`；`AI_AUTH_REQUIRED=true` 只写一次。
 - [ ] **把加固版 `Nginx/nginx.conf` 同步到服务器**，然后 `nginx -t && systemctl reload nginx`（CORS 精确源白名单、`server_tokens off`、TLS 1.2+）。
 - [ ] 服务器一次性准备：`sudo bash deploy/pm2/setup.sh`。
@@ -43,9 +45,17 @@ RESEND_API_KEY=...
 
 # AI 密钥按需: OPENAI_API_KEY / DEEPSEEK_API_KEY / OPENROUTER_API_KEY / GEMINI_API_KEY
 
+# 套件服务(匿名会话 + 每日额度 + 全局预算 + Turnstile)
+DEFAULT_GAME_ID=wenming               # 缺省 game_id
+ANON_COOKIE_SAMESITE=None             # 跨站 iframe 游戏(itch.io)需 None;同域部署可改 Lax
+AI_DAILY_BUDGET_TOKENS=500000         # 全局每日 token 预算硬顶(所有游戏合计)
+TURNSTILE_ENABLED=false               # 公测前按需开启
+TURNSTILE_SECRET_KEY=...              # Cloudflare Turnstile 服务端密钥(开启时必填)
+
 # 特性口令(可选,LLM 代理的前置门禁)
-FEATURE_PASSWORD_ENABLED=true
-FEATURE_PASSWORDS="pw-a:llm-all,admin-panel;pw-b:llm-gemini"
+# ⚠ 开发期白名单,公测前必须移除:共享密钥放前端必被扒走,玩家额度走匿名会话 + Turnstile + 预算
+FEATURE_PASSWORD_ENABLED=false
+# FEATURE_PASSWORDS="pw-a:llm-all,admin-panel;pw-b:llm-gemini"
 
 # 鉴权(每个变量只能出现一次,dotenv 重复键=后者覆盖前者)
 AUTH_ENABLED=true
