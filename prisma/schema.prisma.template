@@ -49,3 +49,42 @@ model LoginChallenge {
   @@index([email])
   @@index([magicTokenHash])
 }
+
+// 每会话每游戏每日额度消耗记录（每日免费额度的使用情况）
+model QuotaUsage {
+  id           String   @id @default(cuid())
+  sessionId    String
+  gameId       String
+  date         String // YYYY-MM-DD
+  usedTokens   Int      @default(0)
+  usedRequests Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  @@unique([sessionId, gameId, date])
+  @@index([gameId, date])
+}
+
+// 兑换码加量后的累积余额（不随每日重置，消耗时优先扣这里）
+model SessionCredit {
+  id              String   @id @default(cuid())
+  sessionId       String
+  gameId          String
+  remainingTokens Int      @default(0)
+  updatedAt       DateTime @updatedAt
+
+  @@unique([sessionId, gameId])
+}
+
+// 兑换码
+model RedeemCode {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  gameId          String
+  tokenAmount     Int
+  usedBySessionId String?
+  usedAt          DateTime?
+  createdAt       DateTime  @default(now())
+  expiresAt       DateTime?
+
+  @@index([gameId])
+}

@@ -11,6 +11,7 @@ import { echoRouter } from './framework/routers/echo';
 import { router } from './trpc';
 import { join } from 'path';
 import { corsPluginOptions, createAuthContext } from './middleware';
+import { ensureAnonymousSession } from './middleware/anonymous-session';
 import { config } from './config';
 import { getCorsConfig } from './config/cors';
 import { getAuthConfig } from './config/auth';
@@ -79,6 +80,16 @@ export async function buildServer(): Promise<FastifyInstance> {
 		console.log(`📥 Origin: ${request.headers.origin}`);
 		console.log(`📥 User-Agent: ${request.headers['user-agent']}`);
 		console.log(`📥 请求头:`, JSON.stringify(sanitizeHeaders(request.headers), null, 2));
+	});
+
+	// 匿名会话:LLM 代理与 tRPC 需要会话身份(额度/兑换码/人机验证)。
+	// 静态演示文件与健康检查不需要;OPTIONS 预检不种 cookie。
+	server.addHook('onRequest', async (request, reply) => {
+		if (request.method === 'OPTIONS') return;
+		const url = request.url;
+		if (url.startsWith('/v1/chat/completions') || url.startsWith('/api/v1/chat/completions') || url.startsWith('/api/trpc/')) {
+			ensureAnonymousSession(request, reply);
+		}
 	});
 
 	server.addHook('onResponse', async (request, reply) => {
