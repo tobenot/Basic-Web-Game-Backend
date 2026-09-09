@@ -1,9 +1,11 @@
-# PM2 单机部署手册（原子发布 + 健康检查 + 回滚）
+# PM2 单机部署手册（遗留路径）
 
-一套最小却稳健的单机部署模板。特性：
+> 生产环境优先使用 `deploy/systemd/`。PM2 仅用于明确选择 PM2 的旧环境；同一应用、同一端口只能有一个 supervisor。
+
+这套遗留部署模板保留以下能力：
 - 原子切换：每次发布一个版本目录，`current` 软链接切换
 - 健康检查：失败自动回滚
-- PM2 进程守护：开机自启、日志管理
+- PM2 进程守护：仅在没有 systemd owner 时启用
 - 可回滚：保留最近 5 个版本
 
 ## 重部署检查清单（照着做就行）
@@ -15,6 +17,7 @@
 - [ ] **发布时跑迁移**：新增了 `QuotaUsage` / `SessionCredit` / `RedeemCode` 三张表，发布脚本设 `MIGRATE_ON_DEPLOY=1` 会自动 `prisma migrate deploy`。
 - [ ] **填 `/etc/bwb/bwb.env`**（完整清单见下节）。重点：`JWT_SECRET` 用强随机值且≠`your-secret-key`；`HOST=127.0.0.1`（**不要 0.0.0.0**，否则 3000 端口直连绕过 IP 限流）；`CORS_PROVIDER=NGINX`；`AI_AUTH_REQUIRED=true` 只写一次。
 - [ ] **把加固版 `Nginx/nginx.conf` 同步到服务器**，然后 `nginx -t && systemctl reload nginx`（CORS 精确源白名单、`server_tokens off`、TLS 1.2+）。
+- [ ] **确认没有 systemd owner**：脚本会自动拒绝与 systemd 竞争；不要绕过这个检查。
 - [ ] 服务器一次性准备：`sudo bash deploy/pm2/setup.sh`。
 - [ ] 本地打包 → 上传 → 发布：`bash deploy/pm2/pack.sh` → `scp bwb-*.tar.gz user@server:/tmp/` → `sudo bash deploy/pm2/deploy.sh /tmp/bwb-*.tar.gz`。
 - [ ] 发布后 `sudo -u bwb pm2 logs --lines 50`，确认启动日志是 `"jwtSecret": "[REDACTED]"` 而不是明文。
@@ -65,7 +68,7 @@ TRPC_AUTH_REQUIRED=true
 MIGRATE_ON_DEPLOY=1     # 如需发布时自动跑 Prisma 迁移
 ```
 
-## 准备（服务器，一次性）
+## 准备（服务器，一次性；仅 PM2 环境）
 
 ```bash
 sudo bash deploy/pm2/setup.sh
@@ -108,13 +111,13 @@ sudo bash deploy/pm2/deploy.sh /tmp/bwb-YYYYmmdd_HHMMSS.tar.gz
 - `server_tokens off` 已启用
 - `ssl_protocols TLSv1.2 TLSv1.3`（已废弃的 TLSv1/1.1 移除）
 
-## 运行与观测
+## 运行与观测（仅 PM2 环境）
 
 - 查看进程：`sudo -u bwb pm2 ls`
 - 查看日志：`sudo -u bwb pm2 logs --lines 200`
 - 开机自启（已配置）：`pm2 startup ...` 与 `pm2 save`
 
-## 回滚
+## 回滚（仅 PM2 环境）
 
 - 脚本会在健康检查失败时自动回滚
 - 手动回滚：

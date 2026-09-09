@@ -18,17 +18,9 @@ import { config } from './config';
 import { getCorsConfig } from './config/cors';
 import { getAuthConfig } from './config/auth';
 import { testCors } from './framework/utils/cors-test';
+import { createHttpLogFields } from './http-logging';
 
-const SENSITIVE_HEADERS = new Set(['authorization', 'cookie', 'set-cookie', 'x-api-key', 'proxy-authorization', 'x-feature-password', 'x-goog-api-key']);
-const sanitizeHeaders = (headers: Record<string, any>) => {
-	const out: Record<string, any> = {};
-	for (const [key, value] of Object.entries(headers)) {
-		out[key] = SENSITIVE_HEADERS.has(key.toLowerCase()) ? '[REDACTED]' : value;
-	}
-	return out;
-};
-// 去掉 query string，防止魔法链接的一次性 token 落日志
-const redactUrl = (u: string) => u.split('?')[0];
+const requestStartTimes = new WeakMap<object, bigint>();
 
 export type AppRouter = ReturnType<typeof createAppRouter>;
 
@@ -48,7 +40,23 @@ function createAppRouter() {
 export async function buildServer(): Promise<FastifyInstance> {
 	const appRouter = createAppRouter();
 	// 生产在 nginx 反代后面，需要信任 X-Forwarded-For 才能拿到真实客户端 IP 供限流使用
-	const server = fastify({ maxParamLength: 5000, trustProxy: true });
+	const server = fastify({
+		maxParamLength: 5000,
+		trustProxy: true,
+		disableRequestLogging: true,
+		logger: {
+			level: process.env.LOG_LEVEL || 'info',
+			redact: [
+				'req.headers.authorization',
+				'req.headers.cookie',
+				'req.headers.set-cookie',
+				'req.headers.x-api-key',
+				'req.headers.x-feature-password',
+				'req.headers.x-goog-api-key',
+				'res.headers.set-cookie',
+			],
+		},
+	});
 
 	const corsConfig = getCorsConfig();
 	const authConfig = getAuthConfig();
@@ -80,10 +88,7 @@ export async function buildServer(): Promise<FastifyInstance> {
 	}
 
 	server.addHook('onRequest', async (request, _reply) => {
-		console.log(`📥 收到请求: ${request.method} ${redactUrl(request.url)}`);
-		console.log(`📥 Origin: ${request.headers.origin}`);
-		console.log(`📥 User-Agent: ${request.headers['user-agent']}`);
-		console.log(`📥 请求头:`, JSON.stringify(sanitizeHeaders(request.headers), null, 2));
+		requestStartTimes.set(request, process.hrtime.bigint());
 	});
 
 	// 匿名会话:LLM 代理与 tRPC 需要会话身份(额度/兑换码/人机验证)。
@@ -97,8 +102,21 @@ export async function buildServer(): Promise<FastifyInstance> {
 	});
 
 	server.addHook('onResponse', async (request, reply) => {
-		console.log(`📤 响应: ${request.method} ${redactUrl(request.url)} -> ${reply.statusCode}`);
-		console.log(`📤 响应头:`, JSON.stringify(sanitizeHeaders(reply.getHeaders()), null, 2));
+		const startedAt = requestStartTimes.get(request);
+		const durationMs = startedAt === undefined
+			? undefined
+			: Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+		const route = request.routeOptions?.url;
+		request.log.info(
+			createHttpLogFields({
+				method: request.method,
+				url: request.url,
+				route,
+				statusCode: reply.statusCode,
+				durationMs,
+			}),
+			'request completed',
+		);
 	});
 
 	// 基础安全响应头

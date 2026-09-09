@@ -29,7 +29,7 @@
     "template:apply": "APPLY=1 bash scripts/update-from-template.sh",
     "template:apply:blocks": "APPLY=1 BLOCKS_ONLY=1 bash scripts/update-from-template.sh",
     "hooks:install": "bash scripts/install-git-hooks.sh",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npm run build && node --test tests/*.test.mjs",
     "vercel-build": "npm run build",
     "vercel:build": "node scripts/generate-prisma-schema.js && npx prisma generate",
     "pack:win": "node scripts/pack.js win full",

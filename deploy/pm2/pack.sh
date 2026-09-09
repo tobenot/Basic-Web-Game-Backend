@@ -27,6 +27,7 @@ mkdir -p "$STAGE/bin" "$STAGE/deploy"
 cp deploy/pm2/bin/start.sh "$STAGE/bin/start"
 cp deploy/pm2/pre_deploy.sh "$STAGE/deploy/pre_deploy.sh"
 cp deploy/pm2/ecosystem.config.js "$STAGE/ecosystem.config.js"
+cp deploy/pm2/assert-no-systemd-owner.sh "$STAGE/deploy/assert-no-systemd-owner.sh"
 
 # Optional: static test page (handy for quick check)
 [[ -f test.html ]] && cp test.html "$STAGE/" || true

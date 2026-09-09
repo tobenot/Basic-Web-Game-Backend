@@ -14,6 +14,19 @@ RETAIN=5
 TIMEOUT=60
 HEALTH_PATH="/health"
 
+# PM2 is a legacy option. Refuse to compete with a systemd-owned app.
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/assert-no-systemd-owner.sh"
+
+PORT=3000
+if [[ -r "$ETC_DIR/$APP.env" ]]; then
+  port_candidate=$(grep -E '^PORT=' "$ETC_DIR/$APP.env" | tail -n1 | cut -d= -f2- || true)
+  if [[ "${port_candidate:-}" =~ ^[0-9]+$ ]]; then PORT=$port_candidate; fi
+fi
+export BWB_APP_ROOT="$BASE"
+assert_no_systemd_owner "$PORT"
+
 PKG=${1:?Usage: sudo deploy/pm2/deploy.sh /tmp/${APP}-<version>.tar.gz}
 [[ -f "$PKG" ]] || { echo "Package not found: $PKG"; exit 1; }
 
@@ -47,13 +60,6 @@ if [[ -f "$CURRENT/$ECOSYSTEM" ]]; then
 else
   echo "Ecosystem file not found: $CURRENT/$ECOSYSTEM" >&2
   exit 1
-fi
-
-# Derive port from env, default 3000
-PORT=3000
-if [[ -f "$ETC_DIR/$APP.env" ]]; then
-  p=$(grep -E '^PORT=' "$ETC_DIR/$APP.env" | tail -n1 | cut -d= -f2- || true)
-  if [[ -n "${p:-}" ]]; then PORT=$p; fi
 fi
 
 # Health check with retry

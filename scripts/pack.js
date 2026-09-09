@@ -123,6 +123,44 @@ exit /b 1
 `
 }
 
+const linuxSupervisorGuard = [
+  '# PM2 is a legacy option; never compete with a systemd-owned application.',
+  'assert_no_systemd_owner() {',
+  '  local port="${1:-3000}"',
+  '  local active_units unit exec_start working_dir',
+  '  command -v systemctl >/dev/null 2>&1 || return 0',
+  '  active_units="$(systemctl list-units --type=service --state=active --no-legend --no-pager 2>/dev/null | awk \'{print $1}\' || true)"',
+  '  while IFS= read -r unit; do',
+  '    [[ -z "$unit" ]] && continue',
+  '    case "$unit" in pm2-*.service|user@*.service|session-*.scope) continue ;; esac',
+  '    exec_start="$(systemctl show "$unit" -p ExecStart --value 2>/dev/null || true)"',
+  '    working_dir="$(systemctl show "$unit" -p WorkingDirectory --value 2>/dev/null || true)"',
+  '    if [[ "$exec_start" == *"dist/server.js"* || "$working_dir" == *"/bwb"* ]]; then',
+  '      echo "Refusing PM2 deployment: active systemd unit \'$unit\' appears to own this application." >&2',
+  '      echo "Choose one supervisor; stop/disable the systemd owner first." >&2',
+  '      return 1',
+  '    fi',
+  '  done <<< "$active_units"',
+  '  if command -v ss >/dev/null 2>&1; then',
+  '    local listeners pid cgroup_unit',
+  '    listeners="$(ss -ltnpH "sport = :$port" 2>/dev/null || true)"',
+  '    while IFS= read -r pid; do',
+  '      [[ -z "$pid" || ! -r "/proc/$pid/cgroup" ]] && continue',
+  '      cgroup_unit="$(awk -F/ \'{for (i = 1; i <= NF; i++) if ($i ~ /\\.service$/) print $i}\' "/proc/$pid/cgroup" | tail -n 1)"',
+  '      if [[ "$cgroup_unit" == *.service && "$cgroup_unit" != pm2-*.service ]]; then',
+  '        echo "Refusing PM2 deployment: port $port is owned by systemd unit \'$cgroup_unit\'." >&2',
+  '        echo "Choose one supervisor; do not run PM2 beside systemd." >&2',
+  '        return 1',
+  '      fi',
+  '    done < <(grep -oE \'pid=[0-9]+\' <<< "$listeners" | cut -d= -f2 | sort -u || true)',
+  '  fi',
+  '}',
+  'PORT=3000',
+  'port_candidate=$(grep -E \'^PORT=\' "$ENV_FILE" | tail -n1 | cut -d= -f2- || true)',
+  'if [[ "${port_candidate:-}" =~ ^[0-9]+$ ]]; then PORT=$port_candidate; fi',
+  'assert_no_systemd_owner "$PORT"',
+].join('\n');
+
 function createLinuxDeployScript(appName, version, buildType) {
 	if (buildType === 'modules') {
 		return `#!/usr/bin/env bash
@@ -144,9 +182,10 @@ echo "Node modules installation completed! Version: ${version}"
 set -euo pipefail
 APP_NAME="${appName}"
 BUILD_VERSION="${version}"
-ENV_FILE=".env"
-[[ -f "$ENV_FILE" ]] || { [[ -f ".env.publish" ]] && ENV_FILE=".env.publish"; }
+ENV_FILE="\${BWB_ENV_FILE:-/etc/bwb/bwb.env}"
+[[ -r "$ENV_FILE" ]] || { echo "Missing runtime environment: $ENV_FILE" >&2; exit 1; }
 echo "Deploying $APP_NAME v$BUILD_VERSION..."
+${linuxSupervisorGuard}
 if ! command -v pm2 >/dev/null 2>&1; then
 	echo "Installing pm2..."
 	npm i -g pm2
@@ -217,7 +256,7 @@ async function main() {
 		if (fs.existsSync('package-lock.json')) entriesBase.push({ type: 'file', src: 'package-lock.json', dest: 'package-lock.json' })
 		if (fs.existsSync('test.html')) entriesBase.push({ type: 'file', src: 'test.html', dest: 'test.html' })
 		if (fs.existsSync('cors-test.html')) entriesBase.push({ type: 'file', src: 'cors-test.html', dest: 'cors-test.html' })
-		if (fs.existsSync('.env.publish')) entriesBase.push({ type: 'file', src: '.env.publish', dest: '.env.publish' })
+
 	}
 	if (buildType === 'full' && fs.existsSync('node_modules')) {
 		entriesBase.push({ type: 'dir', src: 'node_modules', dest: 'node_modules' })

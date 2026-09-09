@@ -9,12 +9,18 @@ APP_HOME="/home/$APP_USER"
 BASE="/opt/$APP"
 LOG_DIR="/var/log/$APP"
 ETC_DIR="/etc/$APP"
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/assert-no-systemd-owner.sh"
 
 # Ensure root
 if [[ $EUID -ne 0 ]]; then
   echo "Please run as root: sudo bash deploy/pm2/setup.sh" >&2
   exit 1
 fi
+
+export BWB_APP_ROOT="$BASE"
+assert_no_systemd_owner 3000
 
 # 1) Create user and directories
 if ! id -u "$APP_USER" >/dev/null 2>&1; then
@@ -40,7 +46,7 @@ if [[ ! -f "$ETC_DIR/$APP.env" ]]; then
 # Runtime environment for $APP
 NODE_ENV=production
 PORT=3000
-HOST=0.0.0.0
+HOST=127.0.0.1
 # DATABASE_URL=postgresql://user:pass@host:5432/db
 # JWT_SECRET=please-change-me
 # MIGRATE_ON_DEPLOY=1
