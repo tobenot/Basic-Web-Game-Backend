@@ -71,148 +71,112 @@ pause > nul
 exit /b 1
 `
 	}
-	const useDepsInstall = buildType === 'server'
 	return `@echo off
 chcp 65001 > nul
-set APP_NAME=${appName}
-set BUILD_VERSION=${version}
-set ENV_FILE=.env
-if not exist %ENV_FILE% if exist .env.publish set ENV_FILE=.env.publish
-echo Deploying %APP_NAME% v%BUILD_VERSION%...
 
-where pm2 >nul 2>nul
-if %ERRORLEVEL% NEQ 0 (
-	echo Installing pm2...
-	call npm i -g pm2
-)
-
-${useDepsInstall ? `if exist package-lock.json (
-	echo Installing dependencies...
-	call npm ci --omit=dev || goto :fail
-) else (
-	echo Installing dependencies...
-	call npm i --production || goto :fail
-)` : `echo Using bundled node_modules`}
-
-echo Stopping service...
-call pm2 delete %APP_NAME% 2>nul
-
-for %%I in (prisma\\migrations) do (
-	if exist %%I (
-		for /f "tokens=2 delims==" %%A in ('findstr /R /C:"^MIGRATE_ON_DEPLOY=" %ENV_FILE% 2^>nul') do set MIGRATE_ON_DEPLOY=%%A
-		if "%MIGRATE_ON_DEPLOY%"=="1" (
-			echo Running Prisma migrations...
-			call npx dotenv -e %ENV_FILE% -- npx prisma migrate deploy || goto :fail
-		)
-	)
-)
-
-echo Starting service...
-call npx dotenv -e %ENV_FILE% -- pm2 start dist/server.js --name %APP_NAME% --env production --update-env || goto :fail
-call pm2 save
-
-echo.
-echo Deployment completed! Version: %BUILD_VERSION%
-pause > nul
-exit /b 0
-
-:fail
-echo Deployment failed.
-pause > nul
+echo PM2-based Windows deployment is retired for this application.
+echo Provision exactly one Windows Service supervisor, then deploy the release through that service.
+echo This package will not install, start, reload, or save PM2 state.
 exit /b 1
 `
 }
 
-const linuxSupervisorGuard = [
-  '# PM2 is a legacy option; never compete with a systemd-owned application.',
-  'assert_no_systemd_owner() {',
-  '  local port="${1:-3000}"',
-  '  local active_units unit exec_start working_dir',
-  '  command -v systemctl >/dev/null 2>&1 || return 0',
-  '  active_units="$(systemctl list-units --type=service --state=active --no-legend --no-pager 2>/dev/null | awk \'{print $1}\' || true)"',
-  '  while IFS= read -r unit; do',
-  '    [[ -z "$unit" ]] && continue',
-  '    case "$unit" in pm2-*.service|user@*.service|session-*.scope) continue ;; esac',
-  '    exec_start="$(systemctl show "$unit" -p ExecStart --value 2>/dev/null || true)"',
-  '    working_dir="$(systemctl show "$unit" -p WorkingDirectory --value 2>/dev/null || true)"',
-  '    if [[ "$exec_start" == *"dist/server.js"* || "$working_dir" == *"/bwb"* ]]; then',
-  '      echo "Refusing PM2 deployment: active systemd unit \'$unit\' appears to own this application." >&2',
-  '      echo "Choose one supervisor; stop/disable the systemd owner first." >&2',
-  '      return 1',
-  '    fi',
-  '  done <<< "$active_units"',
-  '  if command -v ss >/dev/null 2>&1; then',
-  '    local listeners pid cgroup_unit',
-  '    listeners="$(ss -ltnpH "sport = :$port" 2>/dev/null || true)"',
-  '    while IFS= read -r pid; do',
-  '      [[ -z "$pid" || ! -r "/proc/$pid/cgroup" ]] && continue',
-  '      cgroup_unit="$(awk -F/ \'{for (i = 1; i <= NF; i++) if ($i ~ /\\.service$/) print $i}\' "/proc/$pid/cgroup" | tail -n 1)"',
-  '      if [[ "$cgroup_unit" == *.service && "$cgroup_unit" != pm2-*.service ]]; then',
-  '        echo "Refusing PM2 deployment: port $port is owned by systemd unit \'$cgroup_unit\'." >&2',
-  '        echo "Choose one supervisor; do not run PM2 beside systemd." >&2',
-  '        return 1',
-  '      fi',
-  '    done < <(grep -oE \'pid=[0-9]+\' <<< "$listeners" | cut -d= -f2 | sort -u || true)',
+const linuxPm2Guard = [
+  '# systemd is canonical; refuse any online PM2 process.',
+  'APP_USER="${BWB_APP_USER:-bwb}"',
+  'if command -v pm2 >/dev/null 2>&1 && id -u "$APP_USER" >/dev/null 2>&1; then',
+  '  pm2_state="$(su - "$APP_USER" -c "pm2 jlist 2>/dev/null" || true)"',
+  '  if grep -q "online" <<< "$pm2_state"; then',
+  '    echo "Refusing systemd deployment: PM2 has an online process for $APP_USER." >&2',
+  '    echo "Choose one supervisor and remove the PM2 app before continuing." >&2',
+  '    exit 1',
   '  fi',
-  '}',
-  'PORT=3000',
-  'port_candidate=$(grep -E \'^PORT=\' "$ENV_FILE" | tail -n1 | cut -d= -f2- || true)',
-  'if [[ "${port_candidate:-}" =~ ^[0-9]+$ ]]; then PORT=$port_candidate; fi',
-  'assert_no_systemd_owner "$PORT"',
+  'fi',
 ].join('\n');
 
 function createLinuxDeployScript(appName, version, buildType) {
 	if (buildType === 'modules') {
 		return `#!/usr/bin/env bash
 set -euo pipefail
-echo "Installing node modules for ${appName} v${version}..."
-rm -rf node_modules || true
-if [[ -f package-lock.json ]]; then
-	echo "Installing dependencies..."
-	npm ci --omit=dev
-else
-	echo "Installing dependencies..."
-	npm i --production
-fi
+echo "Installing locked production modules for ${appName} v${version}..."
+[[ -f package-lock.json ]] || { echo "package-lock.json is required" >&2; exit 1; }
+npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+[[ -x node_modules/.bin/prisma ]] || { echo "Prisma CLI missing" >&2; exit 1; }
+./node_modules/.bin/prisma generate --schema=prisma/schema.prisma
 echo "Node modules installation completed! Version: ${version}"
 `
 	}
-	const useDepsInstall = buildType === 'server'
 	return `#!/usr/bin/env bash
 set -euo pipefail
-APP_NAME="${appName}"
+
+APP_ID="\${BWB_APP_ID:-bwb}"
+APP_USER="\${BWB_APP_USER:-bwb}"
+APP_GROUP="\${BWB_APP_GROUP:-$APP_USER}"
+BASE="\${BWB_BASE:-/opt/$APP_ID}"
+RELEASES="$BASE/releases"
+CURRENT="$BASE/current"
+UNIT="\${BWB_SYSTEMD_UNIT:-basic-web-game.service}"
+ETC_DIR="\${BWB_ETC_DIR:-/etc/$APP_ID}"
+ENV_FILE="\${BWB_ENV_FILE:-$ETC_DIR/$APP_ID.env}"
+SOURCE_DIR=$(cd -- "$(dirname -- "\${BASH_SOURCE[0]}")" && pwd)
 BUILD_VERSION="${version}"
-ENV_FILE="\${BWB_ENV_FILE:-/etc/bwb/bwb.env}"
+
+[[ $EUID -eq 0 ]] || { echo "Run as root" >&2; exit 1; }
 [[ -r "$ENV_FILE" ]] || { echo "Missing runtime environment: $ENV_FILE" >&2; exit 1; }
-echo "Deploying $APP_NAME v$BUILD_VERSION..."
-${linuxSupervisorGuard}
-if ! command -v pm2 >/dev/null 2>&1; then
-	echo "Installing pm2..."
-	npm i -g pm2
+command -v systemctl >/dev/null 2>&1 || { echo "systemctl is required" >&2; exit 1; }
+[[ -f "$SOURCE_DIR/package-lock.json" ]] || { echo "package-lock.json is required" >&2; exit 1; }
+${linuxPm2Guard}
+
+if [[ ! -f "/etc/systemd/system/$UNIT" && -f "$SOURCE_DIR/basic-web-game.service" ]]; then
+  install -m 0644 "$SOURCE_DIR/basic-web-game.service" "/etc/systemd/system/$UNIT"
 fi
-${useDepsInstall ? `if [[ -f package-lock.json ]]; then
-	echo "Installing dependencies..."
-	npm ci --omit=dev
-else
-	echo "Installing dependencies..."
-	npm i --production
-fi` : `echo "Using bundled node_modules"`}
-pm2 delete "$APP_NAME" 2>/dev/null || true
-MIGRATE=0
-if [[ -f "$ENV_FILE" ]]; then
-	set -a
-	. "$ENV_FILE"
-	set +a
-	MIGRATE=\${MIGRATE_ON_DEPLOY:-0}
+id -u "$APP_USER" >/dev/null 2>&1 || { echo "Missing app user: $APP_USER" >&2; exit 1; }
+id -g "$APP_GROUP" >/dev/null 2>&1 || { echo "Missing app group: $APP_GROUP" >&2; exit 1; }
+
+mkdir -p "$RELEASES"
+NEW_DIR="$APP_ID-$BUILD_VERSION"
+NEW_PATH="$RELEASES/$NEW_DIR"
+rm -rf -- "$NEW_PATH"
+mkdir -p "$NEW_PATH"
+cp -a "$SOURCE_DIR/." "$NEW_PATH/"
+chown -R "$APP_USER:$APP_GROUP" "$NEW_PATH"
+chmod +x "$NEW_PATH/deploy/pre_deploy.sh" 2>/dev/null || true
+
+PREV_PATH=$(readlink -f "$CURRENT" || true)
+printf -v q_new_path '%q' "$NEW_PATH"
+printf -v q_etc_dir '%q' "$ETC_DIR"
+printf -v q_env_file '%q' "$ENV_FILE"
+su - "$APP_USER" -c "cd $q_new_path && BWB_APP_NAME='$APP_ID' BWB_ETC_DIR=$q_etc_dir BWB_ENV_FILE=$q_env_file bash deploy/pre_deploy.sh"
+
+ln -sfn "$NEW_PATH" "$CURRENT"
+systemctl daemon-reload
+systemctl enable --now "$UNIT" >/dev/null
+systemctl restart "$UNIT"
+
+PORT=3000
+port_candidate=$(grep -E '^PORT=' "$ENV_FILE" | tail -n1 | cut -d= -f2- || true)
+if [[ "\${port_candidate:-}" =~ ^[0-9]+$ ]]; then PORT=$port_candidate; fi
+health_ok=0
+deadline=$((SECONDS+60))
+while (( SECONDS < deadline )); do
+  if curl -fsS "http://127.0.0.1:$PORT/health" >/dev/null; then health_ok=1; break; fi
+  sleep 2
+done
+
+if (( health_ok == 0 )); then
+  echo "Health check failed; rolling back release." >&2
+  if [[ -n "\${PREV_PATH:-}" && -d "$PREV_PATH" ]]; then
+    ln -sfn "$PREV_PATH" "$CURRENT"
+    systemctl restart "$UNIT" || true
+  fi
+  exit 1
 fi
-if [[ "$MIGRATE" == "1" && -d prisma/migrations ]]; then
-	echo "Running Prisma migrations..."
-	npx dotenv -e "$ENV_FILE" -- npx prisma migrate deploy
-fi
-echo "Starting service..."
-npx dotenv -e "$ENV_FILE" -- pm2 start dist/server.js --name "$APP_NAME" --env production --update-env
-pm2 save
-echo "Deployment completed! Version: $BUILD_VERSION"
+
+find "$RELEASES" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\\n' \\
+  | sort -nr | tail -n +6 | cut -d' ' -f2- \\
+  | xargs -r rm -rf --
+
+echo "Deployed $NEW_DIR with $UNIT"
 `
 }
 
@@ -271,7 +235,11 @@ async function main() {
 	}
 	if (platform === 'linux' || platform === 'all') {
 		const shScript = createLinuxDeployScript(appName, version, buildType)
-		const linuxEntries = entriesBase.concat([{ type: 'content', content: shScript, dest: 'deploy.sh', mode: 0o755 }])
+		const linuxOnly = buildType === 'modules' ? [] : [
+			{ type: 'file', src: 'deploy/systemd/pre_deploy.sh', dest: 'deploy/pre_deploy.sh' },
+			{ type: 'file', src: 'deploy/systemd/basic-web-game.service', dest: 'basic-web-game.service' },
+		]
+		const linuxEntries = entriesBase.concat(linuxOnly, [{ type: 'content', content: shScript, dest: 'deploy.sh', mode: 0o755 }])
 		const outPath = path.join('packages', `${appName}-linux-${buildType}-v${version}.zip`)
 		await createZip(outPath, linuxEntries)
 		outputs.push(outPath)

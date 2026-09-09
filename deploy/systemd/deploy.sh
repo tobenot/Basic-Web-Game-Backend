@@ -49,7 +49,10 @@ chmod +x "$NEW_PATH"/deploy/*.sh 2>/dev/null || true
 
 PREV_PATH=$(readlink -f "$CURRENT" || true)
 if [[ -x "$NEW_PATH/deploy/pre_deploy.sh" ]]; then
-  su - "$APP_USER" -c "cd '$NEW_PATH' && bash deploy/pre_deploy.sh"
+  printf -v q_new_path '%q' "$NEW_PATH"
+  printf -v q_etc_dir '%q' "$ETC_DIR"
+  printf -v q_env_file '%q' "$ENV_FILE"
+  su - "$APP_USER" -c "cd $q_new_path && BWB_APP_NAME='$APP' BWB_ETC_DIR=$q_etc_dir BWB_ENV_FILE=$q_env_file bash deploy/pre_deploy.sh"
 fi
 
 ln -sfn "$NEW_PATH" "$CURRENT"

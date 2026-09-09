@@ -67,27 +67,27 @@
   },
   "homepage": "https://github.com/tobenot/Basic-Web-Game-Backend#readme",
   "dependencies": {
-    "@fastify/cors": "^11.1.0",
-    "@prisma/client": "^6.15.0",
-    "@trpc/server": "^11.4.3",
-    "@types/jsonwebtoken": "^9.0.6",
-    "@types/node": "^20.14.12",
-    "@vercel/node": "^5.3.17",
+    "@fastify/cors": "^11.3.0",
+    "@prisma/client": "6.12.0",
+    "@trpc/server": "^11.18.0",
     "dotenv-cli": "^7.4.4",
-    "fastify": "^5.4.0",
-    "jsonwebtoken": "^9.0.2",
+    "fastify": "^5.12.3",
+    "jsonwebtoken": "^9.0.3",
     "resend": "^3.5.0",
-    "typescript": "^5.9.2",
-    "undici": "^6.19.8",
+    "undici": "^6.28.1",
     "zod": "^3.23.8"
   },
   "peerDependencies": {
-    "@trpc/server": "^11.4.3",
+    "@trpc/server": "^11.18.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^20.19.43",
+    "@vercel/node": "^5.10.2",
     "archiver": "^6.0.1",
-    "prisma": "^6.15.0",
-    "ts-node-dev": "^2.0.0"
+    "prisma": "6.12.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.3"
   }
 }

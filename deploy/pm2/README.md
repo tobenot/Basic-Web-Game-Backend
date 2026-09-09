@@ -1,12 +1,10 @@
-# PM2 单机部署手册（遗留路径）
+# PM2 单机部署手册（已退役）
 
-> 生产环境优先使用 `deploy/systemd/`。PM2 仅用于明确选择 PM2 的旧环境；同一应用、同一端口只能有一个 supervisor。
+> **此路径已退役。** 生产环境统一使用 `deploy/systemd/`，不要安装或启动 PM2。
 
-这套遗留部署模板保留以下能力：
-- 原子切换：每次发布一个版本目录，`current` 软链接切换
-- 健康检查：失败自动回滚
-- PM2 进程守护：仅在没有 systemd owner 时启用
-- 可回滚：保留最近 5 个版本
+同一应用端口只能有一个 supervisor。旧机治理中 PM2 与 systemd 并存正是 `EADDRINUSE` 重启循环的根因；因此本目录的 setup/deploy 脚本现在 fail-closed，不会创建 PM2 daemon、写 PM2 startup 或执行 `pm2 start/reload/save`。
+
+保留本目录只是为了让旧发布包和历史路径有明确的拒绝行为；新的部署入口见 `deploy/systemd/README.md`。
 
 ## 重部署检查清单（照着做就行）
 
@@ -17,10 +15,10 @@
 - [ ] **发布时跑迁移**：新增了 `QuotaUsage` / `SessionCredit` / `RedeemCode` 三张表，发布脚本设 `MIGRATE_ON_DEPLOY=1` 会自动 `prisma migrate deploy`。
 - [ ] **填 `/etc/bwb/bwb.env`**（完整清单见下节）。重点：`JWT_SECRET` 用强随机值且≠`your-secret-key`；`HOST=127.0.0.1`（**不要 0.0.0.0**，否则 3000 端口直连绕过 IP 限流）；`CORS_PROVIDER=NGINX`；`AI_AUTH_REQUIRED=true` 只写一次。
 - [ ] **把加固版 `Nginx/nginx.conf` 同步到服务器**，然后 `nginx -t && systemctl reload nginx`（CORS 精确源白名单、`server_tokens off`、TLS 1.2+）。
-- [ ] **确认没有 systemd owner**：脚本会自动拒绝与 systemd 竞争；不要绕过这个检查。
-- [ ] 服务器一次性准备：`sudo bash deploy/pm2/setup.sh`。
-- [ ] 本地打包 → 上传 → 发布：`bash deploy/pm2/pack.sh` → `scp bwb-*.tar.gz user@server:/tmp/` → `sudo bash deploy/pm2/deploy.sh /tmp/bwb-*.tar.gz`。
-- [ ] 发布后 `sudo -u bwb pm2 logs --lines 50`，确认启动日志是 `"jwtSecret": "[REDACTED]"` 而不是明文。
+- [ ] **确认没有 PM2 owner**：旧机上 PM2 必须为 `masked/inactive`、进程数为 0；不要绕过 systemd 单 supervisor 约束。
+- [ ] **服务器一次性准备**：按 `deploy/systemd/README.md` 创建无特权 `bwb` 用户、安装 unit，并准备 `/etc/bwb/bwb.env`。
+- [ ] 本地打包 → 上传 → 发布：使用 systemd 发布脚本；不要调用本目录的 setup/deploy 脚本。
+- [ ] 发布后检查 `systemctl status basic-web-game.service --no-pager`、`journalctl -u basic-web-game.service` 和 `/health`。
 
 ## 环境变量：唯一来源是 `/etc/bwb/bwb.env`
 
@@ -68,40 +66,29 @@ TRPC_AUTH_REQUIRED=true
 MIGRATE_ON_DEPLOY=1     # 如需发布时自动跑 Prisma 迁移
 ```
 
-## 准备（服务器，一次性；仅 PM2 环境）
+## 准备（服务器，一次性；systemd）
+
+请严格按照 `deploy/systemd/README.md` 执行：创建无特权 `bwb` 用户，安装 `basic-web-game.service`，并把运行时变量放在 `/etc/bwb/bwb.env`（`root:bwb`, `0640`）。不要运行本目录的 PM2 setup。
+
+## 发布
 
 ```bash
-sudo bash deploy/pm2/setup.sh
-sudo nano /etc/bwb/bwb.env     # 填上面清单
+sudo bash deploy/systemd/deploy.sh /tmp/bwb-<version>.tar.gz
 ```
 
-确保服务器已安装 Node.js（建议 LTS）与 npm。
+systemd 发布脚本会：
+1. 解包到独立 release 目录；
+2. 以 `bwb` 用户执行锁定的生产依赖安装和显式 Prisma client generation；
+3. 原子切换 `current` 软链接；
+4. 重启唯一的 systemd unit；
+5. 检查 `http://127.0.0.1:PORT/health`，失败自动回滚；
+6. 保留最近 5 个 release。
 
-## 打包（本地，每次）
+发布脚本会拒绝在线 PM2 进程，避免再次引入端口争用。
 
-```bash
-bash deploy/pm2/pack.sh        # 生成 bwb-YYYYmmdd_HHMMSS.tar.gz
-```
+## 打包与上传
 
-## 上传（本地 → 服务器）
-
-```bash
-scp bwb-*.tar.gz user@server:/tmp/
-```
-
-## 发布（服务器，每次）
-
-```bash
-sudo bash deploy/pm2/deploy.sh /tmp/bwb-YYYYmmdd_HHMMSS.tar.gz
-```
-
-脚本会：
-1. 解包到 `/opt/bwb/releases/<version>`
-2. 以 `bwb` 用户执行 `deploy/pre_deploy.sh`（source env、装生产依赖、可选迁移）
-3. 切换 `current` → 新版本
-4. `pm2 startOrReload ecosystem.config.js --env production`（经 `bin/start` 启动,读 `/etc/bwb/bwb.env`）
-5. 检查 `http://127.0.0.1:PORT/health`，失败自动回滚
-6. 清理旧版本（保留 5 个）
+使用仓库提供的 systemd 发布包流程；发布包只能包含 `dist`、Prisma schema、package manifest/lockfile 和部署辅助脚本，不得包含 `.env`、`.env.publish` 或其他凭据文件。
 
 ## Nginx 要求（服务器，一次性）
 
@@ -111,21 +98,21 @@ sudo bash deploy/pm2/deploy.sh /tmp/bwb-YYYYmmdd_HHMMSS.tar.gz
 - `server_tokens off` 已启用
 - `ssl_protocols TLSv1.2 TLSv1.3`（已废弃的 TLSv1/1.1 移除）
 
-## 运行与观测（仅 PM2 环境）
+## 运行与观测（systemd）
 
-- 查看进程：`sudo -u bwb pm2 ls`
-- 查看日志：`sudo -u bwb pm2 logs --lines 200`
-- 开机自启（已配置）：`pm2 startup ...` 与 `pm2 save`
+- 查看进程：`systemctl status basic-web-game.service --no-pager`
+- 查看日志：`journalctl -u basic-web-game.service --since today --no-pager`
+- 健康检查：`curl --fail http://127.0.0.1:3000/health`
+- 确认唯一 owner：`ss -ltnp | grep ':3000'`，并确认 PM2 进程为 0。
 
-## 回滚（仅 PM2 环境）
+## 回滚（systemd）
 
-- 脚本会在健康检查失败时自动回滚
-- 手动回滚：
-  `sudo ln -sfn /opt/bwb/releases/<old> /opt/bwb/current && sudo -u bwb pm2 startOrReload /opt/bwb/current/ecosystem.config.js --env production && sudo -u bwb pm2 save`
+- 健康检查失败时，`deploy/systemd/deploy.sh` 自动恢复上一 release。
+- 手动回滚前先确认目标 release、服务 unit 和端口 owner；不要通过 PM2 恢复。
 
 ## 安全注意事项
 
 - 服务器上只放 `/etc/bwb/bwb.env` 私密变量，**不要把 env 文件打包进发布包**
 - 不要用 `0.0.0.0` 绑 HOST，也不要对公网放行 3000 端口——`trustProxy` 只信任本机 Nginx，直连可绕过 IP 限流
-- 改应用名需同时改 `setup.sh`、`deploy.sh`、`pack.sh`、`ecosystem.config.js`、`bin/start.sh`、`pre_deploy.sh` 里的 `bwb`
+- 应用名/服务名调整时，优先同步 `deploy/systemd/basic-web-game.service`、`deploy/systemd/deploy.sh`、`deploy/systemd/pre_deploy.sh` 和 `/etc/bwb/bwb.env`；不要重新启用 PM2。
 - 数据库迁移推荐"扩展-收缩"策略，确保老版本也能运行新 schema

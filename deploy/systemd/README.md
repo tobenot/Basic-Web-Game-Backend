@@ -27,11 +27,19 @@ If the host previously used PM2, remove only the PM2 app and its startup entry b
 
 ## Release
 
+Build a Linux release package from a clean checkout:
+
+```bash
+npm run pack:linux:server
+```
+
+The generated Linux package is systemd-only. It contains the runtime manifest/lockfile, Prisma schema, systemd unit, and deployment hook; it never installs or starts PM2.
+
 ```bash
 sudo bash deploy/systemd/deploy.sh /tmp/bwb-<version>.tar.gz
 ```
 
-The script requires the external environment file, switches the release atomically, restarts systemd, checks `/health`, and rolls back the symlink if the health check fails. It refuses to proceed when the `bwb` user's PM2 has an online process.
+The script requires the external environment file, installs the locked production dependency tree with lifecycle scripts disabled, explicitly generates Prisma Client, switches the release atomically, restarts systemd, checks `/health`, and rolls back the symlink if the health check fails. It refuses to proceed when the `bwb` user's PM2 has an online process.
 
 ## Operations
 
