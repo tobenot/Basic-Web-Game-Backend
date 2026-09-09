@@ -49,11 +49,11 @@ export async function buildServer(): Promise<FastifyInstance> {
 			redact: [
 				'req.headers.authorization',
 				'req.headers.cookie',
-				'req.headers.set-cookie',
-				'req.headers.x-api-key',
-				'req.headers.x-feature-password',
-				'req.headers.x-goog-api-key',
-				'res.headers.set-cookie',
+				"req.headers['set-cookie']",
+				"req.headers['x-api-key']",
+				"req.headers['x-feature-password']",
+				"req.headers['x-goog-api-key']",
+				"res.headers['set-cookie']",
 			],
 		},
 	});
