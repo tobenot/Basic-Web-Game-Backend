@@ -14,7 +14,7 @@ Use systemd as the only supervisor for a production backend. Do not run the same
 
 1. Create the unprivileged `bwb` user and the `/opt/bwb` and `/etc/bwb` directories.
 2. Install `/etc/bwb/bwb.env` with mode `0640`, owned by `root:bwb`.
-3. Review `basic-web-game.service` and confirm the Node executable is available through its `PATH`.
+3. Review `basic-web-game.service` and confirm the Node executable is available through its `PATH`. The default includes `/opt/node22/bin`; if Node is installed elsewhere, set `BWB_NODE_BIN` and `BWB_NPM_BIN` for the release hook.
 4. Install the unit and enable it:
 
 ```bash

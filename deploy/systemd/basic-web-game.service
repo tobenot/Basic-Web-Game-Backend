@@ -12,7 +12,7 @@ Group=bwb
 WorkingDirectory=/opt/bwb/current
 EnvironmentFile=/etc/bwb/bwb.env
 Environment=NODE_ENV=production
-Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=PATH=/opt/node22/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ExecStart=/usr/bin/env node dist/server.js
 Restart=on-failure
 RestartSec=5s

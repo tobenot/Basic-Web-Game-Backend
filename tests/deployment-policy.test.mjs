@@ -29,7 +29,19 @@ test('canonical systemd deployment assets exist and do not start PM2', () => {
   assert.doesNotMatch(unit, /pm2/i);
   assert.match(deploy, /systemctl/);
   assert.doesNotMatch(deploy, /pm2\s+(start|restart|reload)/i);
-  assert.match(preDeploy, /npm ci --omit=dev --ignore-scripts/);
+  assert.match(preDeploy, /ci --omit=dev --ignore-scripts/);
   assert.match(preDeploy, /prisma generate/);
   assert.doesNotMatch(preDeploy, /npx\s+prisma/);
+});
+
+test('systemd pre-deploy resolves Node and npm outside a login shell PATH', () => {
+  const unit = fs.readFileSync(new URL('../deploy/systemd/basic-web-game.service', import.meta.url), 'utf8');
+  const preDeploy = fs.readFileSync(new URL('../deploy/systemd/pre_deploy.sh', import.meta.url), 'utf8');
+
+  assert.match(preDeploy, /BWB_NODE_BIN/);
+  assert.match(preDeploy, /BWB_NPM_BIN/);
+  assert.match(preDeploy, /readlink -f/);
+  assert.match(preDeploy, /export PATH=/);
+  assert.match(preDeploy, /NPM_BIN/);
+  assert.match(unit, /\/opt\/node22\/bin:.*\/usr\/local\/bin/);
 });
