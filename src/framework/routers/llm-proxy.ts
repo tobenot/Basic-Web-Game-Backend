@@ -11,6 +11,12 @@ import { checkQuota, recordUsage, estimateTokensFromMessages } from '../../ai/qu
 import { isSessionTurnstileVerified } from './turnstile';
 import { TRPCError } from '@trpc/server';
 import { createRateLimiter } from '../utils/rate-limit';
+import {
+	AiProfile,
+	getProfileProviderConfig,
+	resolveAiProfile,
+	validateModelForProfile,
+} from '../../config/ai-profiles';
 
 // ponytail: 单实例内存限流;按 IP 每 1 分钟 20 次,正常 demo 用户够用
 const llmIpLimiter = createRateLimiter(20, 60 * 1000);
@@ -65,12 +71,25 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 		return reply.code(400).send({ error: 'Invalid request: messages are required.' });
 	}
 
+	const appId = request.headers['x-app-id'];
+	const profile = resolveAiProfile(appId);
+	if (profile.allowedModels) {
+		if (body.model && !validateModelForProfile(profile, body.model).allowed) {
+			return reply.code(400).send({
+				error: 'model_not_allowed',
+				message: 'The requested model is not permitted for this application profile.',
+			});
+		}
+		body.model = profile.defaultModel!;
+	}
+
 	// —— 匿名会话 + 游戏配置 + 额度/预算检查 ——
 	const sessionId = getSessionId(request);
 	if (!sessionId) {
 		return reply.code(401).send({ error: 'missing_session', message: '缺少会话，请刷新页面后重试。' });
 	}
-	const gameId = (body as any).game_id || (request.query as any)?.game_id || getDefaultGameId();
+	const requestedGameId = (body as any).game_id || (request.query as any)?.game_id;
+	const gameId = profile.gameId || requestedGameId || getDefaultGameId();
 	const gameConfig = getGameConfig(gameId);
 	if (!gameConfig) {
 		return reply.code(400).send({ error: 'unknown_game', message: `未知的游戏 ID: ${gameId}` });
@@ -100,7 +119,10 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 		await recordUsage(sessionId, gameId, tokens);
 	};
 
-	const { provider, model } = getProviderAndModel(body.model);
+	const selection = profile.allowedModels
+		? { provider: profile.provider === 'deepseek' ? 'deepseek' as Provider : 'default' as Provider, model: body.model }
+		: getProviderAndModel(body.model);
+	const { provider, model } = selection;
 	body.model = model;
 
 	const setManualCorsHeaders = () => {
@@ -271,7 +293,7 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 		}
 	}
 
-	const upstream = getLlmClient(provider);
+	const upstream = getLlmClient(provider, profile);
 
 	if (body.stream) {
 		reply.raw.setHeader('Content-Type', 'text/event-stream');
@@ -375,6 +397,10 @@ const chatCompletionsHandler = async (request: FastifyRequest, reply: FastifyRep
 };
 
 const getLlmPermission = (request: FastifyRequest): string | null => {
+	const profile = resolveAiProfile(request.headers['x-app-id']);
+	if (profile.id === 'beyond-books') {
+		return null;
+	}
 	const body = request.body as ChatCompletionParams | undefined;
 	if (!body?.model) {
 		return 'llm-all'; // Fallback if model is not present
@@ -389,7 +415,7 @@ const getLlmPermission = (request: FastifyRequest): string | null => {
 	return 'llm-all'; // Default for other models
 };
 
-type Provider = 'openai' | 'deepseek' | 'openrouter' | 'gemini' | 'default';
+export type Provider = 'openai' | 'deepseek' | 'openrouter' | 'gemini' | 'default';
 
 function getProviderAndModel(originalModel: string): { provider: Provider; model: string } {
 	if (originalModel.startsWith('gemini-')) {
@@ -410,14 +436,22 @@ function getProviderAndModel(originalModel: string): { provider: Provider; model
 	return { provider: 'default', model: originalModel };
 }
 
-function getLlmClient(provider: Provider): LlmClient {
+export function getLlmClient(provider: Provider, profile: AiProfile = resolveAiProfile()): LlmClient {
 	switch (provider) {
 		case 'openai':
 			if (!process.env.OPENAI_API_KEY) throw new TRPCError({ code: 'BAD_REQUEST', message: 'OPENAI_API_KEY is not set on the server.' });
 			return new LlmClient({ apiKey: process.env.OPENAI_API_KEY, baseUrl: process.env.OPENAI_BASE_URL || 'https://api.openai.com' });
-		case 'deepseek':
+		case 'deepseek': {
+			const profileProvider = getProfileProviderConfig(profile);
+			if (profileProvider) {
+				if (!profileProvider.apiKey) {
+					throw new TRPCError({ code: 'BAD_REQUEST', message: 'Beyond-Books DeepSeek provider is not configured on the server.' });
+				}
+				return new LlmClient({ apiKey: profileProvider.apiKey, baseUrl: profileProvider.baseUrl });
+			}
 			if (!process.env.DEEPSEEK_API_KEY) throw new TRPCError({ code: 'BAD_REQUEST', message: 'DEEPSEEK_API_KEY is not set on the server.' });
 			return new LlmClient({ apiKey: process.env.DEEPSEEK_API_KEY, baseUrl: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com' });
+		}
 		case 'openrouter':
 			if (!process.env.OPENROUTER_API_KEY) throw new TRPCError({ code: 'BAD_REQUEST', message: 'OPENROUTER_API_KEY is not set on the server.' });
 			return new LlmClient({ apiKey: process.env.OPENROUTER_API_KEY, baseUrl: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1' });

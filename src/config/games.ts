@@ -16,6 +16,13 @@ const defaultGames: Record<string, GameConfig> = {
 		dailyFreeTokens: 20_000,
 		degradedMessage: 'AI 额度已用尽，请明天再来，或输入兑换码加量。',
 	},
+	'beyond-books': {
+		id: 'beyond-books',
+		name: 'Beyond-Books',
+		defaultModel: 'deepseek-flash',
+		dailyFreeTokens: 20_000,
+		degradedMessage: 'AI 额度已用尽，请稍后再试。',
+	},
 };
 
 function loadEnvOverrides(): Record<string, GameConfig> {
