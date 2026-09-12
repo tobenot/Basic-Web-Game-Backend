@@ -67,6 +67,7 @@ export const config = {
       'http://127.0.0.1:5174',
       'https://tobenot.top', // 前端域名
       'https://bwb.tobenot.top', // 后端域名
+      'https://tobenot.github.io', // GitHub Pages 前端
     ];
     
     // 从环境变量添加额外的CORS域名

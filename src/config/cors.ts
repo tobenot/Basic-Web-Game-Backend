@@ -29,6 +29,7 @@ export function getCorsConfig(): CorsConfig {
     'http://127.0.0.1:8080',
     'https://tobenot.top',
     'https://bwb.tobenot.top',
+    'https://tobenot.github.io',
     'https://html-classic.itch.zone',
     'https://itch.zone',
   ];
