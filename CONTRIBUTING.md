@@ -17,9 +17,9 @@ This guide applies to both maintainers and external contributors. / 本指南适
 ## Development Setup / 环境搭建
 
 1. Fork and clone the repository. / Fork 并克隆仓库。
-2. `npm install`
-3. `cp .env.example .env` and fill in at least `DATABASE_URL` and `JWT_SECRET`. / 至少填写 `DATABASE_URL` 与 `JWT_SECRET`。
-4. `npm run migrate:dev`
+2. Use Node.js 22.x, then `npm ci` from the committed lockfile. / 使用 Node.js 22.x，按锁文件安装。
+3. `cp .env.example .env` and fill in `DATABASE_URL` for an isolated PostgreSQL database plus a private `JWT_SECRET`. / 使用独立 PostgreSQL 数据库并填写私有签名密钥。
+4. `npm run migrate:dev` on that local database. The committed migration history is PostgreSQL-only. / 仅对该本地库执行迁移，现有迁移不适用于 SQLite。
 5. `npm run dev` — the server runs at `http://localhost:3000`. / 服务器运行在 `http://localhost:3000`。
 
 If you don't have a Resend API key, the server still starts — login emails just won't be sent (the magic link and OTP are still printed to the server console in development).
@@ -42,8 +42,9 @@ If you don't have a Resend API key, the server still starts — login emails jus
 
 ## Testing / 测试
 
-- There is no automated test suite yet — a one-line `npm test` stub exists. / 目前尚无自动化测试套件。
-- Before opening a PR, at minimum: / 提交 PR 前至少做到：
+- `npm test` builds the backend and runs `node --test tests/*.test.mjs`, including AI-profile, HTTP-logging and deployment-policy checks. / 已有自动化测试，不是空壳。Build prepares the generated Prisma schema/client and `dist/`; it is not a read-only inspection.
+- For documentation-only changes, inspect the scoped diff and changed local links without starting a server, generating Prisma artifacts or connecting to a database. / 纯文书只核本次 diff 和改动链接，不强制服务启动或数据库操作。
+- For code changes, choose checks matching the affected behavior. / 代码改动按影响选择验证：
   - `npm run build` passes. / 构建通过。
   - `npm run dev` boots and `/health` returns `{ status: "ok" }`. / 服务可启动且 `/health` 正常。
   - Your change works end-to-end against the test page at `/test.html` where relevant. / 相关改动在 `/test.html` 测试页端到端验证通过。

@@ -39,7 +39,7 @@ A modern, type-safe backend for web games — authentication, an OpenAI-compatib
 - 🎮 **AI game suite (anonymous quota)** — multi-game config via `game_id`, anonymous sessions (HttpOnly cookie), per-session daily free quota, redeem codes, a global daily budget breaker, Cloudflare Turnstile, per-game degraded copy, plus a single-file frontend SDK (`sdk/ai-game-sdk.js`).
 - 🛡 **Feature passwords** — gate LLM access per provider behind shared keys via the `x-feature-password` header (**dev-only allow-list; remove before public launch**).
 - 🧱 **End-to-end type safety** — tRPC with Zod input validation from server to frontend.
-- 🗄 **Prisma ORM** — PostgreSQL in production, SQLite for local development, versioned migrations.
+- 🗄 **Prisma ORM** — PostgreSQL with versioned migrations. The schema generator can also select SQLite, but the committed migration history is PostgreSQL-only.
 - 🌐 **Flexible CORS** — allow-list of dev/prod origins (including itch.io for web games), configurable via env, or offloaded to NGINX.
 - 📦 **Publishable contract package** — ship your `AppRouter` types as an npm package so the frontend types always match the API.
 - ☁️ **Deployment-ready** — Vercel config, Docker Compose for Postgres, and pre-packaged Windows/Linux builds.
@@ -61,9 +61,9 @@ A modern, type-safe backend for web games — authentication, an OpenAI-compatib
 
 ### Prerequisites
 
-- Node.js 22+ (`cat .nvmrc` / `.nvmrc` pins `22`)
+- Node.js **22.x** (`.nvmrc` and `package.json` select this line)
 - npm
-- A database: **SQLite** for local dev, **PostgreSQL** for production
+- An isolated **PostgreSQL** database for local development, matching `prisma/migrations/migration_lock.toml`
 
 ### Install & Run
 
@@ -72,11 +72,12 @@ A modern, type-safe backend for web games — authentication, an OpenAI-compatib
 git clone https://github.com/tobenot/Basic-Web-Game-Backend.git
 cd Basic-Web-Game-Backend
 
-# 2. Install dependencies
-npm install
+# 2. Restore dependencies from the committed lockfile
+npm ci
 
 # 3. Configure environment variables
 cp .env.example .env
+# Set DATABASE_URL to your local PostgreSQL database and choose a private JWT_SECRET.
 
 # 4. Generate the Prisma schema + client and run migrations
 npm run migrate:dev
@@ -86,6 +87,12 @@ npm run dev
 ```
 
 The server starts on `http://localhost:3000`. A test page is served at `http://localhost:3000/test.html`.
+
+The source for Prisma generation is `prisma/schema.prisma.template`; `scripts/generate-prisma-schema.js` selects the provider, then Prisma generates its client. Email template sources are tracked under `src/framework/templates/` and copied into `dist/` during build. Do not substitute an old `dist/` or Prisma cache for those inputs.
+
+**SQLite caveat:** selecting `DATABASE_URL=file:...` changes the generated schema, not the migration history. An isolated probe with Prisma 6.12.0 validates that schema but rejects the committed migrations with **P3019** because the migration lock declares PostgreSQL. SQLite experiments need a separate provider-specific migration path. Do not delete or rewrite the shared PostgreSQL migrations to make the quick start work.
+
+Restoring source and generating a client does not restore database contents, runtime credentials or provider accounts. Existing installations need their separately managed database backup and external runtime configuration. No production reset, deploy or publish command is part of this local quick start.
 
 ### Environment Variables
 
@@ -219,7 +226,8 @@ npm run publish   # npm publish --access public --registry=https://registry.npmj
 ## 🌐 Deployment
 
 - **Vercel** — `vercel.json` is configured for serverless deployment; the `vercel-build` script handles the build.
-- **Nginx** — sample configs live in [`Nginx/`](Nginx) (CORS can be offloaded here with `CORS_PROVIDER=NGINX`).
+- **Self-hosted service** — the tracked [systemd deployment guide](deploy/systemd/README.md) is the current server entry. Deployment is a separate authorized operation.
+- **Nginx** — `Nginx/` is ignored host configuration, not a directory supplied by a fresh clone. The tracked [Nginx tutorial](docx/tutorial/42_nginx_config.md) provides background; recover host-specific proxy configuration separately when using `CORS_PROVIDER=NGINX`.
 - **PostgreSQL via Docker** — `docker compose -f docker-compose.postgres.yml up -d`, then use the `:pg` npm scripts (`migrate:pg:dev`, `studio:pg`, …).
 - **Self-hosting packages** — `npm run pack:win` / `pack:linux` produce ready-to-run server bundles.
 

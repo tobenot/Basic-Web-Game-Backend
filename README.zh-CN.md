@@ -39,7 +39,7 @@
 - 🎮 **AI 游戏套件（匿名额度）**——多游戏配置（`game_id`）、匿名会话（HttpOnly cookie）、每会话每日免费额度、兑换码加量、全局每日预算硬顶熔断、Cloudflare Turnstile 人机验证、按游戏降级文案，配套单文件前端 SDK（`sdk/ai-game-sdk.js`）。
 - 🛡 **功能密码（Feature Password）**——通过 `x-feature-password` 请求头，用共享密钥按供应商粒度开放 LLM 访问权限（**开发期白名单，公测前应移除**）。
 - 🧱 **端到端类型安全**——tRPC + Zod 输入校验，从前端到后端全程类型一致。
-- 🗄 **Prisma ORM**——生产环境使用 PostgreSQL，本地开发使用 SQLite，带版本化迁移。
+- 🗄 **Prisma ORM**——PostgreSQL 及版本化迁移。schema 生成器也可选择 SQLite，但已提交的迁移链只适用于 PostgreSQL。
 - 🌐 **灵活的 CORS**——开发/生产域名白名单（含 itch.io 等网页游戏平台），可用环境变量配置，或交由 NGINX 处理。
 - 📦 **可发布的契约包**——将 `AppRouter` 类型作为 npm 包发布，前端类型永远与接口一致。
 - ☁️ **部署就绪**——内置 Vercel 配置、Postgres Docker Compose、以及 Windows/Linux 打包脚本。
@@ -61,9 +61,9 @@
 
 ### 环境要求
 
-- Node.js 22+（`.nvmrc` 固定为 `22`）
+- Node.js **22.x**（`.nvmrc` 与 `package.json` 指定这一版本线）
 - npm
-- 数据库：本地开发用 **SQLite**，生产环境用 **PostgreSQL**
+- 数据库：本地开发使用独立 **PostgreSQL** 数据库，与 `prisma/migrations/migration_lock.toml` 一致
 
 ### 安装与启动
 
@@ -72,11 +72,12 @@
 git clone https://github.com/tobenot/Basic-Web-Game-Backend.git
 cd Basic-Web-Game-Backend
 
-# 2. 安装依赖
-npm install
+# 2. 按已提交的锁文件恢复依赖
+npm ci
 
 # 3. 配置环境变量
 cp .env.example .env
+# 将 DATABASE_URL 指向独立本地 PostgreSQL 数据库，并自行设置私有 JWT_SECRET。
 
 # 4. 生成 Prisma schema 与客户端，并执行迁移
 npm run migrate:dev
@@ -86,6 +87,12 @@ npm run dev
 ```
 
 服务器启动于 `http://localhost:3000`，测试页面为 `http://localhost:3000/test.html`。
+
+Prisma 的生成源是 `prisma/schema.prisma.template`，由 `scripts/generate-prisma-schema.js` 选择 provider，再由 Prisma 生成客户端。邮件模板源已跟踪在 `src/framework/templates/`，构建时复制进 `dist/`。旧 `dist/` 或 Prisma 缓存不能替代这些输入。
+
+**SQLite 边界：** `DATABASE_URL=file:...` 只改变生成的 schema，不会转换迁移链。Prisma 6.12.0 的隔离检查确认该 schema 可验证，但现有迁移因锁文件声明 PostgreSQL 被 **P3019** 拒绝。SQLite 试验需要独立的 provider 专用迁移路线，不要为通过快速开始而删除或改写共享 PostgreSQL 迁移。
+
+恢复源码和生成客户端不等于恢复数据库内容、运行凭据或供应商账户。已有服务还需其独立管理的数据库备份与外部运行配置。本地起步不包含生产 reset、部署或发布。
 
 ### 环境变量
 
@@ -224,7 +231,8 @@ npm run publish   # npm publish --access public --registry=https://registry.npmj
 ## 🌐 部署
 
 - **Vercel**——`vercel.json` 已配置无服务器部署，`vercel-build` 脚本负责构建。
-- **Nginx**——示例配置位于 [`Nginx/`](Nginx)（可设 `CORS_PROVIDER=NGINX` 让 NGINX 处理 CORS）。
+- **自托管服务**——当前服务器入口见已跟踪的 [systemd 部署说明](deploy/systemd/README.md)，部署是独立授权操作。
+- **Nginx**——`Nginx/` 是被忽略的主机配置，并非 fresh clone 附带目录。已跟踪的 [Nginx 教程](docx/tutorial/42_nginx_config.md) 提供背景，使用 `CORS_PROVIDER=NGINX` 时还需单独恢复对应主机的代理配置。
 - **Docker + PostgreSQL**——`docker compose -f docker-compose.postgres.yml up -d` 后使用 `:pg` 系列脚本（`migrate:pg:dev`、`studio:pg` 等）。
 - **自托管打包**——`npm run pack:win` / `pack:linux` 可生成开箱即用的服务器包。
 
